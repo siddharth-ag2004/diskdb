@@ -1,7 +1,7 @@
 # *****************************************************
 # Variables to control Makefile operation
 
-CXX = g++
+CXX = g++ -std=c++17
 CXXFLAGS = -g -I .
 
 SRC := $(wildcard *.cpp)
@@ -10,6 +10,8 @@ OBJS = $(SRC:.cpp=.o)
 EXEC_DIR = ./executors
 EXEC_SRC := $(wildcard $(EXEC_DIR)/*.cpp)
 EXEC_OBJS = $(EXEC_SRC:.cpp=.o)
+
+MAKEFLAGS += -j
 
 # ****************************************************
 # Targets needed to bring the executable up to date

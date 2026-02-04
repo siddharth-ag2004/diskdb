@@ -126,11 +126,29 @@ void ParsedQuery::clear()
  * @return true 
  * @return false 
  */
-bool isFileExists(string tableName)
+bool isFileExists(string name)
 {
-    string fileName = "../data/" + tableName + ".csv";
-    struct stat buffer;
-    return (stat(fileName.c_str(), &buffer) == 0);
+    if (parsedQuery.entityType == GRAPH) { 
+        string nodeFileName, edgeFileName;
+        if (parsedQuery.graphType == UNDIRECTED) {
+            nodeFileName = "../data/" + name + "_Nodes_U.csv";
+            edgeFileName = "../data/" + name + "_Edges_U.csv";
+        } else {
+            nodeFileName = "../data/" + name + "_Nodes_D.csv";
+            edgeFileName = "../data/" + name + "_Edges_D.csv";
+        }
+        struct stat buffer;
+        return (stat(nodeFileName.c_str(), &buffer) == 0) && (stat(edgeFileName.c_str(), &buffer) == 0);
+    }
+    else if (parsedQuery.entityType == TABLE) {
+        string fileName = "../data/" + name + ".csv";
+        struct stat buffer;
+        return (stat(fileName.c_str(), &buffer) == 0);
+    }
+    else { // Should never reach here
+        logger.log("isFileExists: Undefined entity type");
+        return false;
+    }
 }
 
 /**

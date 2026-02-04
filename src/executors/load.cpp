@@ -15,6 +15,7 @@ bool syntacticParseLOADTable()
     }
 
     parsedQuery.queryType = LOAD;
+    parsedQuery.entityType = TABLE;
     parsedQuery.loadRelationName = tokenizedQuery[1];
     return true;
 }
@@ -36,6 +37,7 @@ bool syntacticParseLOADGraph()
     }
 
     parsedQuery.queryType = LOAD_GRAPH;
+    parsedQuery.entityType = GRAPH;
     parsedQuery.loadGraphRelationName = tokenizedQuery[2];
     parsedQuery.graphType = (tokenizedQuery[3] == "U") ? UNDIRECTED : DIRECTED;
     return true;
@@ -60,9 +62,9 @@ bool syntacticParseLOAD()
     }
 }
 
-bool semanticParseLOAD()
+bool semanticParseLOADTable()
 {
-    logger.log("semanticParseLOAD");
+    logger.log("semanticParseLOADTable");
     if (tableCatalogue.isTable(parsedQuery.loadRelationName))
     {
         cout << "SEMANTIC ERROR: Relation already exists" << endl;
@@ -74,6 +76,25 @@ bool semanticParseLOAD()
         cout << "SEMANTIC ERROR: Data file doesn't exist" << endl;
         return false;
     }
+    return true;
+}
+
+bool semanticParseLOADGraph()
+{
+    logger.log("semanticParseLOADGraph");
+
+    if (graphCatalogue.isGraph(parsedQuery.loadGraphRelationName))
+    {
+        cout << "SEMANTIC ERROR: Graph already exists" << endl;
+        return false;
+    }
+
+    if (!isFileExists(parsedQuery.loadGraphRelationName))
+    {
+        cout << "SEMANTIC ERROR: Graph files don't exist" << endl;
+        return false;
+    }
+
     return true;
 }
 

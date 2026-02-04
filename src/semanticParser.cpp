@@ -10,7 +10,8 @@ bool semanticParse(){
         case INDEX: return semanticParseINDEX();
         case JOIN: return semanticParseJOIN();
         case LIST: return semanticParseLIST();
-        case LOAD: return semanticParseLOAD();
+        case LOAD: return semanticParseLOADTable();
+        case LOAD_GRAPH: return semanticParseLOADGraph();
         case PRINT: return semanticParsePRINT();
         case PROJECTION: return semanticParsePROJECTION();
         case RENAME: return semanticParseRENAME();

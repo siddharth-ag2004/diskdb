@@ -11,7 +11,10 @@ bool semanticParseEXPORT();
 bool semanticParseINDEX();
 bool semanticParseJOIN();
 bool semanticParseLIST();
-bool semanticParseLOAD();
+// bool semanticParseLOAD();
+bool semanticParseLOADTable();
+bool semanticParseLOADGraph();
+
 bool semanticParsePRINT();
 bool semanticParsePROJECTION();
 bool semanticParseRENAME();

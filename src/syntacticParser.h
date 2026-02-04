@@ -50,11 +50,20 @@ enum SelectType
     NO_SELECT_CLAUSE
 };
 
+enum EntityType
+{
+    TABLE,
+    GRAPH,
+    UNDEFINED_ENTITY
+};
+
 class ParsedQuery
 {
 
 public:
     QueryType queryType = UNDETERMINED;
+    
+    EntityType entityType = UNDEFINED_ENTITY;
 
     string clearRelationName = "";
 

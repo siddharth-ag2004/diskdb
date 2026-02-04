@@ -50,7 +50,13 @@ bool semanticParseSORT(){
     return true;
 }
 
-void executeSORT(){
+void executeSORT()
+{
     logger.log("executeSORT");
-    return;
+
+    Table *inputTable = tableCatalogue.getTable(parsedQuery.sortRelationName);
+
+    inputTable->externalSortCreateNewTable(
+        parsedQuery.sortResultRelationName
+    );
 }

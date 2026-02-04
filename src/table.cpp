@@ -335,3 +335,139 @@ int Table::getColumnIndex(string columnName)
             return columnCounter;
     }
 }
+
+struct HeapNode
+{
+    int key;                 // column 0 value
+    vector<int> row;         // full row
+    int runIndex;            // which run it came from
+};
+
+struct HeapCompare
+{
+    bool operator()(const HeapNode &a, const HeapNode &b)
+    {
+        return a.key > b.key; // min-heap
+    }
+};
+
+void Table::externalSortCreateNewTable(string resultTableName)
+{
+    logger.log("Table::externalSortCreateNewTable");
+
+    Table *resultTable = new Table(resultTableName, this->columns);
+
+    vector<string> runTableNames;
+
+    // Phase 1: CREATE SORTED RUNS (page-wise sort)
+    for (uint pageIdx = 0; pageIdx < this->blockCount; pageIdx++)
+    {
+        Page page = bufferManager.getPage(this->tableName, pageIdx);
+
+        vector<vector<int>> rows;
+        int r = 0;
+        while (true)
+        {
+            vector<int> row = page.getRow(r);
+            if (row.empty())
+                break;
+            rows.push_back(row);
+            r++;
+        }
+
+        // Sort by column 0
+        sort(rows.begin(), rows.end(),
+             [](const vector<int> &a, const vector<int> &b)
+             {
+                 return a[0] < b[0];
+             });
+
+        // Write sorted run (single page per run)
+        string runName = resultTableName + "_run_" + to_string(pageIdx);
+
+        // Create table metadata for the run
+        Table *runTable = new Table(runName, this->columns);
+        runTable->blockCount = 1;
+        runTable->rowCount = rows.size();
+        runTable->rowsPerBlockCount.push_back(rows.size());
+
+        // Write page
+        bufferManager.writePage(runName, 0, rows, rows.size());
+
+        // Register run table
+        tableCatalogue.insertTable(runTable);
+
+        runTableNames.push_back(runName);
+
+    }
+
+    // K-Way merge using min-heap
+
+    int k = runTableNames.size();
+    vector<Cursor> runCursors;
+
+    for (int i = 0; i < k; i++)
+        runCursors.emplace_back(runTableNames[i], 0);
+
+    priority_queue<HeapNode, vector<HeapNode>, HeapCompare> minHeap;
+
+    for (int i = 0; i < k; i++)
+    {
+        vector<int> row = runCursors[i].getNext();
+        if (!row.empty())
+            minHeap.push({row[0], row, i});
+    }
+
+    vector<vector<int>> outputRows;
+    outputRows.reserve(this->maxRowsPerBlock);
+
+    int outputPageIndex = 0;
+
+    while (!minHeap.empty())
+    {
+        HeapNode node = minHeap.top();
+        minHeap.pop();
+
+        outputRows.push_back(node.row);
+
+        vector<int> nextRow = runCursors[node.runIndex].getNext();
+        if (!nextRow.empty())
+            minHeap.push({nextRow[0], nextRow, node.runIndex});
+
+        if (outputRows.size() == this->maxRowsPerBlock)
+        {
+            bufferManager.writePage(
+                resultTableName,
+                outputPageIndex,
+                outputRows,
+                outputRows.size()
+            );
+
+            resultTable->blockCount++;
+            resultTable->rowsPerBlockCount.push_back(outputRows.size());
+
+            outputRows.clear();
+            outputPageIndex++;
+        }
+    }
+
+    // Flush remaining rows
+    if (!outputRows.empty())
+    {
+        bufferManager.writePage(
+            resultTableName,
+            outputPageIndex,
+            outputRows,
+            outputRows.size()
+        );
+
+        resultTable->blockCount++;
+        resultTable->rowsPerBlockCount.push_back(outputRows.size());
+    }
+
+    // Final metadata
+    resultTable->rowCount = this->rowCount;
+
+    tableCatalogue.insertTable(resultTable);
+}
+

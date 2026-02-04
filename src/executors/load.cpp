@@ -51,7 +51,7 @@ bool syntacticParseLOAD()
     {
         return syntacticParseLOADTable();
     }
-    else if (tokenizedQuery.size() == 4)
+    else if (tokenizedQuery.size() == 4 && tokenizedQuery[1] == "GRAPH")
     {
         return syntacticParseLOADGraph();
     }

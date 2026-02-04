@@ -6,13 +6,24 @@
 bool syntacticParseLOAD()
 {
     logger.log("syntacticParseLOAD");
-    if (tokenizedQuery.size() != 2)
+    if (tokenizedQuery.size() != 2 && tokenizedQuery.size() != 4)
     {
         cout << "SYNTAX ERROR" << endl;
         return false;
     }
-    parsedQuery.queryType = LOAD;
-    parsedQuery.loadRelationName = tokenizedQuery[1];
+    if(tokenizedQuery.size() == 2) {
+        parsedQuery.queryType = LOAD;
+        parsedQuery.loadRelationName = tokenizedQuery[1];
+    }
+    else if(tokenizedQuery.size() == 4) {
+        if(tokenizedQuery[3] != "U" && tokenizedQuery[3] != "D") {
+            cout << "SYNTAX ERROR: Invalid graph type (must be 'U' or 'D')" << endl;
+            return false;
+        }
+        parsedQuery.queryType = LOAD_GRAPH;
+        parsedQuery.loadGraphRelationName = tokenizedQuery[2];
+        parsedQuery.graphType = (tokenizedQuery[3] == "U") ?  UNDIRECTED : DIRECTED;
+    }
     return true;
 }
 

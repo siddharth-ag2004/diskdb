@@ -1,0 +1,3364 @@
+
+--- ./LICENSE ---
+```
+MIT License
+
+Copyright (c) 2020 Jayitha
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+```
+
+--- ./README.md ---
+```
+# SimpleRA
+
+## Compilation Instructions
+
+We use ```make``` to compile all the files and creste the server executable. ```make``` is used primarily in Linux systems, so those of you who want to use Windows will probably have to look up alternatives (I hear there are ways to install ```make``` on Windows). To compile
+
+```cd``` into the SimpleRA directory
+```
+cd SimpleRA
+```
+```cd``` into the soure directory (called ```src```)
+```
+cd src
+```
+To compile
+```
+make clean
+make
+```
+
+## To run
+
+Post compilation, an executable names ```server``` will be created in the ```src``` directory
+```
+./server
+```
+## To setup your Git Repository
+- Join the course github organisation using the invite link.
+- Join or create a team corresponding to your team name on the organisation.
+- Your repository will be initialised with a template code on succesful authorisation.
+- Now clone your personal repo using ```git clone "your repo link"```.
+- After you have cloned your repo to your system add the main repo as an upstream to your repo so whenever a change is pushed by TA's you can access it.
+- To set it as upstream type ```git remote add upstream https://github.com/SimpleRA/SimpleRA.git```.
+- Now it will be added as upstream.
+- To fetch the changes made by TA's just type ```git pull upstream master --allow-unrelated-histories``` .
+- Manually merge conflicts if there are any !!
+
+
+## Git tutorials
+- [Basic github tutorial](https://youtu.be/SWYqp7iY_Tc)
+- [Handling git merge conflicts](https://youtu.be/JtIX3HJKwfo)
+- [What is git stash?](https://youtu.be/KLEDKgMmbBI)
+- [The best way is documentation itself](https://docs.github.com/en)
+
+## Instructions for Creating a Pull Request
+- First fork the repo from the main code repository.
+- Then commit your changes to this forked repository.
+- To create a pull request go to the main repository and click on the pull request option.
+- Kindly only submit your pull requests to the branch **student-pull-requests** only. We won't entertain pull requests to master branch.
+
+```
+
+--- ./Grammar.md ---
+```
+# Relational Algebra Grammar
+
+## Grammar
+
+```
+Statement -> relation_name <- assignment_statement
+           | non_assignment_statement
+
+assignment_statement -> cross_product_statement
+                      | distinct_statement
+                      | join_statement
+                      | projection_statement
+                      | selection_statement
+                      | sort_statement
+                       
+non_assignment_statement -> clear_statement 
+                           | index_statement
+                           | list_statement
+                           | load_statement
+                           | print_statement
+                           | quit_statement
+                           | rename_statement
+                           | source_statement
+
+cross_product_statement -> CROSS relation_name relation_name
+
+distinct_statement -> DISTINCT relation_name
+
+join_statement -> JOIN relation_name, relation_name ON column_name bin_op column_name
+
+projection_statement -> PROJECT projection_list FROM relation_name
+
+projection_list -> projection_list, column_name 
+                 | column_name
+
+selection_statement -> SELECT condition FROM relation_name
+
+condition -> column_name binop column_name 
+           | column_name binop int_literal
+
+binop -> > | < | == | != | <= | >= | => | =< 
+
+sort_statement -> SORT relation_name BY column_name IN sorting_order
+
+sorting_order -> ASC | DESC
+
+clear_statement -> CLEAR relation_name
+
+index_statement -> INDEX ON column_name FROM relation_name USING indexing_strategy
+
+indexing_strategy -> HASH | BTREE | NOTHING;
+
+list_statement -> LIST TABLES;
+
+load_statement -> LOAD relation_name
+
+print_statement -> PRINT relation_name
+
+quit_statement -> QUIT
+
+rename_statement -> RENAME column_name TO column_name FROM relation_name
+
+source_statement -> SOURCE file_name
+
+```
+
+```
+
+--- ./docs/Overview.md ---
+```
+---
+marp: true
+theme: gaia
+class: invert
+backgroundColor: black
+---
+
+# SimpleRA
+
+_A laughably-minimalist, integer-only, read-only Relational Database Management System that makes the author question why they ever bothered to write it up!_  
+  
+
+## _Data Systems, Monsoon 2020_
+
+19th August, 2020
+Wednesday
+
+---
+
+### Important Features
+
+- Relational Algebra Operators
+- Integers Only
+- No update operations
+- No aggregate operations
+- No nested queries
+- No transaction management
+- Single thread programming only
+- No identifiers should have spaces in them
+
+
+---
+
+### Commands
+
+There are 2 kinds of commands in this database.
+
+- Assignment statements
+- Non-assignment statements
+
+_Note: Not all operators have been implemented, some have been omitted for you to implement in later phases_
+
+---
+
+## Non Assignment Statements
+
+Non-assginment statements do not create a new table (except load which just loads an existing table) in the process
+
+- LOAD
+- LIST
+- PRINT
+- RENAME
+- EXPORT
+- CLEAR
+- QUIT
+
+---
+
+## Non Assignment Statements
+
+The following haven't been implemented
+- INDEX
+
+---
+
+### LOAD
+
+Syntax:
+```
+LOAD <table_name>
+```
+- To successfully load a table, there should be a csv file names <table_name>.csv consisiting of comma-seperated integers in the data folder
+- None of the columns in the data file should have the same name
+- every cell in the table should have a value
+
+Run: `LOAD A`
+
+---
+
+### LIST TABLES
+
+Syntax
+```
+LIST TABLES
+```
+This command lists all tables that have been loaded or created using assignment statements
+
+Run: `LIST TABLES`
+Run: `LOAD B`, `LIST TABLES`
+
+---
+
+### PRINT
+
+Syntax
+```
+PRINT <table_name>
+```
+
+- Displays the first PRINT_COUNT (global variable) rows of the table. 
+- Less number of rows can be printed if the table has only a few rows
+
+Run: `PRINT B`
+
+---
+
+### RENAME
+
+Syntax
+```
+RENAME <toColumnName> TO <fromColumnName> FROM <table_name>
+```
+
+- Naturally <table_name> should be a loaded table in the system and <fromColumnName> should be an exsiting column in the table
+- <toColumnName> should not be another column in the table
+
+Run: `RENAME b TO c FROM B`
+
+---
+
+### EXPORT
+
+Syntax
+```
+EXPORT <table_name>
+```
+
+- All changes made and new tables created, exist only within the system and will be deleted once execution ends (temp file)
+- To keep changes made (RENAME and new tables), you have to export the table (data)
+
+Run: `EXPORT B`
+
+---
+
+### CLEAR
+
+Syntax
+```
+CLEAR <table_name>
+```
+- Removes table from system
+- The table has to have previously existed in the system to remove it
+- If you want to keep any of the changes you've made to an old table or want to keep the new table, make sure to export !
+
+Run: `CLEAR B`
+
+---
+
+### QUIT
+
+Syntax
+```
+QUIT
+```
+
+- Clear all tables present in the system (**_WITHOUT EXPORTING THEM_**)  (temp file - empty)
+
+Run: `QUIT`
+
+---
+
+### INDEX*
+
+Syntax:
+```
+INDEX ON <columnName> FROM <table_name> USING <indexing_strategy>
+```
+
+Where <indexing_strategy> could be 
+- `BTREE` - BTree indexing on column
+- `HASH` - Index via a hashmap
+- `NOTHING` - Removes index if present 
+
+---
+### Questions ?
+
+---
+
+## Assignment Statements
+
+- All assignment statements lead to the creation of a new table. 
+
+- Every statement is of the form ```<new_table_name> <- <assignment_statement>``` 
+
+- Naturally in all cases, <new_table_name> shouldn't already exist in the system
+
+---
+
+## Assignment Statements
+
+- CROSS
+- PROJECTION
+- SELECTION
+
+The following haven't been implemented
+- DISTINCT
+- JOIN
+- SORT
+
+---
+
+### CROSS
+
+Syntax
+```
+<new_table_name> <- CROSS <table_name1> <table_name2>
+```
+
+- Both the tables being crossed should exist in the system
+- If there are columns with the same names in the two tables, the columns are indexed with the table name. If both tables being crossed are the same, table names are indexed with '1' and '2'
+
+Run: `cross_AA <- CROSS A A`
+
+`A(A, B) x A(A, B) -> cross_AA(A1_A, A1_B, A2_A, A2_B)`
+
+---
+
+### SELECTION
+
+Syntax
+```
+<new_table_name> <- SELECT <condition> FROM <table_name>
+```
+
+Where <condition> is of either form
+```
+<first_column_name> <bin_op> <second_column_name>
+<first_column_name> <bin_op> <int_literal>
+```
+
+Where <bin_op> can be any operator among {>, <, >=, <=, =>, =<, ==, !=}
+
+---
+
+- The selection command only takes one condition at a time
+
+Run: `R <- SELECT a >= 1 FROM A`
+`S <- SELECT a > b FROM A`
+
+---
+
+### PROJECTION
+
+Syntax
+```
+<new_table_name> <- PROJECT <column1>(,<columnN>)* FROM <table_name>
+```
+
+- naturally all columns should be present in the original table
+
+Run: `C <- PROJECT c FROM A`
+
+---
+
+### DISTINCT*
+
+Syntax
+```
+<new_table_name> <- DISTINCT <table_name>
+```
+
+- naturally table should exist
+
+Exmample: `D <- DISTINCT A`
+
+---
+
+### JOIN*
+
+Syntax
+```
+<new_relation_name> <- JOIN <table1>, <table2> ON <column1> <bin_op> <column2>
+```
+
+Where <bin_op> means the same as it does in the SELECT operator
+
+- Implicitly assumes <column1> is from <table1> and <column2> if from <table2>
+
+Example: `J <- JOIN A, B ON a == a`
+
+---
+
+### SORT*
+
+Syntax
+```
+<new_table_name> <- SORT <table_name> BY <column_name> IN <sorting_order>
+```
+
+Where <sorting_order> can be `ASC` or `DESC`
+
+Example: `S <- SORT A BY b IN ASC`
+
+---
+
+### SOURCE
+
+Syntax
+```
+SOURCE <query_name>
+```
+- Special command that takes in a file script from the data directory
+- file name should end in ".ra" indicating it's a query file
+- File to be present in the data folder
+- Used in last phase of project
+
+---
+
+### Internals
+
+- Buffer Manager
+
+- Cursors
+
+- Tables
+
+- Executors
+
+---
+
+### Command Execution Flow
+
+![](flow.png)
+
+Run: `LOAD A` with debugger
+
+see: load.cpp
+
+---
+
+### Syntactic Parser
+
+- Splits the query into query units
+
+see: syntacticParser.h syntacticParser.cpp
+
+### Semantic Parser
+
+- Makes sure your query makes semantic sense
+
+see: semanticParser.h semanticParser.cpp
+
+---
+
+### Executors
+
+Every command(COMMAND) has a file in the executors directory, within that directory you'll find 3 functions
+
+```
+syntacticParseCOMMAND
+semanticParseCOMMAND
+executeCOMMAND
+```
+
+---
+
+### Buffer Manager
+
+- Load splits and stores the table into blocks. For this we utilise the Buffer Manager
+
+- Buffer Manager follows a FIFO paradigm. Essentially a queue
+
+---
+
+### Table Catalogue
+
+- The table catalogue is an index of tables currently loaded into the system
+
+---
+
+### Cursors
+
+A cursor is an object that acts like a pointer in a table. To read from a table, you need to declare a cursor.
+
+![](cursor.png)
+
+Run: `R <- SELECT a == 1 FROM A` with debugger
+
+---
+
+### Logger
+
+Every function call is logged in file names "log"
+
+---
+
+## Project*
+
+- Phase 1: Code Familiarity (to be released today/tomorrow max)
+- Phase 2: 2 Phase Merge Sort
+- Phase 3: Indexing
+- Phase 4: Indexing Optimized Operators
+- Phase 4: Optimisation (SOURCE)
+
+_Note: may include duplicate elimination_
+* Tentative
+
+---
+
+## Project Rules
+
+- **Plagiarism: F**
+- Not sticking to submission guidelines will lead to penalties and at times to scoring 0
+- Project phases build on top of each other, failing to do one phase may hinder the rest
+- If for any reason you fail to complete the project on time, please mail the Prof directly for extensions and not the TAs, the TAs have no jurisdiction in these cases
+
+---
+
+## Adminstrative Rules
+
+- No informal contact with the TAs, you may post on Moodle regarding any doubts. A forum will be created for the same
+- TA Hours have been updated on Moodle
+- If you need to contact the TAs for matters that don't concern the whole class you may mail us here - datasystems_tas_m20@IIITAPhyd.onmicrosoft.com
+
+---
+
+## References
+
+- GitHub Repo - [SimpleRA](https://github.com/SimpleRA/SimpleRA)
+- Build and run instructions will be provided later
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```
+
+--- ./docs/Overview.html ---
+```
+<!DOCTYPE html><html lang="en-IN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,height=device-height,initial-scale=1.0"><meta name="apple-mobile-web-app-capable" content="yes"><meta http-equiv="X-UA-Compatible" content="ie=edge"><meta property="og:type" content="website"><meta name="twitter:card" content="summary"><style>.bespoke-marp-note,.bespoke-marp-osc,.bespoke-progress-parent{display:none;transition:none}@media screen{body[data-bespoke-view=""] .bespoke-marp-parent>.bespoke-marp-osc>button,body[data-bespoke-view=next] .bespoke-marp-parent>.bespoke-marp-osc>button,body[data-bespoke-view=presenter] .bespoke-marp-presenter-container .bespoke-marp-presenter-info-container button{-webkit-appearance:none;-moz-appearance:none;appearance:none;background-color:transparent;border:0;color:inherit;cursor:pointer;font-size:inherit;opacity:.8;outline:none;padding:0;transition:opacity .2s linear;-webkit-tap-highlight-color:transparent}body[data-bespoke-view=""] .bespoke-marp-parent>.bespoke-marp-osc>button:disabled,body[data-bespoke-view=next] .bespoke-marp-parent>.bespoke-marp-osc>button:disabled,body[data-bespoke-view=presenter] .bespoke-marp-presenter-container .bespoke-marp-presenter-info-container button:disabled{cursor:not-allowed;opacity:.15!important}body[data-bespoke-view=""] .bespoke-marp-parent>.bespoke-marp-osc>button:hover,body[data-bespoke-view=next] .bespoke-marp-parent>.bespoke-marp-osc>button:hover,body[data-bespoke-view=presenter] .bespoke-marp-presenter-container .bespoke-marp-presenter-info-container button:hover{opacity:1}body[data-bespoke-view=""] .bespoke-marp-parent>.bespoke-marp-osc>button:hover:active,body[data-bespoke-view=next] .bespoke-marp-parent>.bespoke-marp-osc>button:hover:active,body[data-bespoke-view=presenter] .bespoke-marp-presenter-container .bespoke-marp-presenter-info-container button:hover:active{opacity:.6}body[data-bespoke-view=""] .bespoke-marp-parent>.bespoke-marp-osc>button:hover:not(:disabled),body[data-bespoke-view=next] .bespoke-marp-parent>.bespoke-marp-osc>button:hover:not(:disabled),body[data-bespoke-view=presenter] .bespoke-marp-presenter-container .bespoke-marp-presenter-info-container button:hover:not(:disabled){transition:none}body[data-bespoke-view=""] .bespoke-marp-parent>.bespoke-marp-osc>button[data-bespoke-marp-osc=prev],body[data-bespoke-view=next] .bespoke-marp-parent>.bespoke-marp-osc>button[data-bespoke-marp-osc=prev],body[data-bespoke-view=presenter] .bespoke-marp-presenter-container .bespoke-marp-presenter-info-container button.bespoke-marp-presenter-info-page-prev{background:transparent url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cGF0aCBmaWxsPSJub25lIiBzdHJva2U9IiNmZmYiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgc3Ryb2tlLXdpZHRoPSI1IiBkPSJNNjggOTBMMjggNTBsNDAtNDAiLz48L3N2Zz4=") no-repeat 50%;background-size:contain;overflow:hidden;text-indent:100%;white-space:nowrap}body[data-bespoke-view=""] .bespoke-marp-parent>.bespoke-marp-osc>button[data-bespoke-marp-osc=next],body[data-bespoke-view=next] .bespoke-marp-parent>.bespoke-marp-osc>button[data-bespoke-marp-osc=next],body[data-bespoke-view=presenter] .bespoke-marp-presenter-container .bespoke-marp-presenter-info-container button.bespoke-marp-presenter-info-page-next{background:transparent url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cGF0aCBmaWxsPSJub25lIiBzdHJva2U9IiNmZmYiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgc3Ryb2tlLXdpZHRoPSI1IiBkPSJNMzIgOTBsNDAtNDAtNDAtNDAiLz48L3N2Zz4=") no-repeat 50%;background-size:contain;overflow:hidden;text-indent:100%;white-space:nowrap}body[data-bespoke-view=""] .bespoke-marp-parent>.bespoke-marp-osc>button[data-bespoke-marp-osc=fullscreen],body[data-bespoke-view=next] .bespoke-marp-parent>.bespoke-marp-osc>button[data-bespoke-marp-osc=fullscreen]{background:transparent url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48ZGVmcz48c3R5bGU+LmF7ZmlsbDpub25lO3N0cm9rZTojZmZmO3N0cm9rZS1saW5lY2FwOnJvdW5kO3N0cm9rZS1saW5lam9pbjpyb3VuZDtzdHJva2Utd2lkdGg6NXB4fTwvc3R5bGU+PC9kZWZzPjxyZWN0IGNsYXNzPSJhIiB4PSIxMCIgeT0iMjAiIHdpZHRoPSI4MCIgaGVpZ2h0PSI2MCIgcng9IjUuNjciLz48cGF0aCBjbGFzcz0iYSIgZD0iTTQwIDcwSDIwVjUwbTIwIDBMMjAgNzBtNDAtNDBoMjB2MjBtLTIwIDBsMjAtMjAiLz48L3N2Zz4=") no-repeat 50%;background-size:contain;overflow:hidden;text-indent:100%;white-space:nowrap}body[data-bespoke-view=""] .bespoke-marp-parent>.bespoke-marp-osc>button.exit[data-bespoke-marp-osc=fullscreen],body[data-bespoke-view=next] .bespoke-marp-parent>.bespoke-marp-osc>button.exit[data-bespoke-marp-osc=fullscreen]{background-image:url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48ZGVmcz48c3R5bGU+LmF7ZmlsbDpub25lO3N0cm9rZTojZmZmO3N0cm9rZS1saW5lY2FwOnJvdW5kO3N0cm9rZS1saW5lam9pbjpyb3VuZDtzdHJva2Utd2lkdGg6NXB4fTwvc3R5bGU+PC9kZWZzPjxyZWN0IGNsYXNzPSJhIiB4PSIxMCIgeT0iMjAiIHdpZHRoPSI4MCIgaGVpZ2h0PSI2MCIgcng9IjUuNjciLz48cGF0aCBjbGFzcz0iYSIgZD0iTTIwIDUwaDIwdjIwbS0yMCAwbDIwLTIwbTQwIDBINjBWMzBtMjAgMEw2MCA1MCIvPjwvc3ZnPg==")}body[data-bespoke-view=""] .bespoke-marp-parent>.bespoke-marp-osc>button[data-bespoke-marp-osc=presenter],body[data-bespoke-view=next] .bespoke-marp-parent>.bespoke-marp-osc>button[data-bespoke-marp-osc=presenter]{background:transparent url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48ZGVmcz48c3R5bGU+LmF7ZmlsbDpub25lO3N0cm9rZTojZmZmO3N0cm9rZS1saW5lY2FwOnJvdW5kO3N0cm9rZS13aWR0aDo1cHh9PC9zdHlsZT48L2RlZnM+PHBhdGggY2xhc3M9ImEiIGQ9Ik0yMCA2MGgtNWE1IDUgMCAwMS01LTVWMjBhNSA1IDAgMDE1LTVoNjBhNSA1IDAgMDE1IDV2NU0zMCA4NWg2MCIvPjxyZWN0IHg9IjMwIiB5PSIzNSIgd2lkdGg9IjYwIiBoZWlnaHQ9IjQwIiByeD0iNSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIi8+PHJlY3QgY2xhc3M9ImEiIHg9IjMwIiB5PSIzNSIgd2lkdGg9IjYwIiBoZWlnaHQ9IjQwIiByeD0iNSIvPjxwYXRoIGNsYXNzPSJhIiBkPSJNNDAgNTBoNDBNNDAgNjBoMzAiLz48L3N2Zz4=") no-repeat 50%;background-size:contain;overflow:hidden;text-indent:100%;white-space:nowrap}body,html{height:100%;margin:0}body{background:#000;overflow:hidden}svg.bespoke-marp-slide{opacity:0;pointer-events:none;z-index:-1}svg.bespoke-marp-slide.bespoke-marp-active{opacity:1;pointer-events:auto;z-index:0}svg.bespoke-marp-slide.bespoke-marp-active.bespoke-marp-active-ready *{-webkit-animation-name:__bespoke_marp__!important;animation-name:__bespoke_marp__!important}svg.bespoke-marp-slide[data-bespoke-marp-load=hideable]{display:none}svg.bespoke-marp-slide[data-bespoke-marp-load=hideable].bespoke-marp-active{display:block}[data-bespoke-marp-fragment=inactive]{visibility:hidden}body[data-bespoke-view=""] .bespoke-marp-parent,body[data-bespoke-view=next] .bespoke-marp-parent{bottom:0;left:0;position:absolute;right:0;top:0}body[data-bespoke-view=""] .bespoke-marp-parent>.bespoke-marp-osc,body[data-bespoke-view=next] .bespoke-marp-parent>.bespoke-marp-osc{background:rgba(0,0,0,.65);border-radius:7px;bottom:50px;color:#fff;display:block;font-family:Helvetica,Arial,sans-serif;font-size:16px;left:50%;line-height:0;opacity:1;padding:12px;position:absolute;touch-action:manipulation;transform:translateX(-50%);transition:opacity .2s linear;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;white-space:nowrap;z-index:1;will-change:transform}body[data-bespoke-view=""] .bespoke-marp-parent>.bespoke-marp-osc>*,body[data-bespoke-view=next] .bespoke-marp-parent>.bespoke-marp-osc>*{margin-left:6px}body[data-bespoke-view=""] .bespoke-marp-parent>.bespoke-marp-osc>:first-child,body[data-bespoke-view=next] .bespoke-marp-parent>.bespoke-marp-osc>:first-child{margin-left:0}body[data-bespoke-view=""] .bespoke-marp-parent>.bespoke-marp-osc>span,body[data-bespoke-view=next] .bespoke-marp-parent>.bespoke-marp-osc>span{opacity:.8}body[data-bespoke-view=""] .bespoke-marp-parent>.bespoke-marp-osc>span[data-bespoke-marp-osc=page],body[data-bespoke-view=next] .bespoke-marp-parent>.bespoke-marp-osc>span[data-bespoke-marp-osc=page]{display:inline-block;min-width:140px;text-align:center}body[data-bespoke-view=""] .bespoke-marp-parent>.bespoke-marp-osc>button[data-bespoke-marp-osc=fullscreen],body[data-bespoke-view=""] .bespoke-marp-parent>.bespoke-marp-osc>button[data-bespoke-marp-osc=next],body[data-bespoke-view=""] .bespoke-marp-parent>.bespoke-marp-osc>button[data-bespoke-marp-osc=presenter],body[data-bespoke-view=""] .bespoke-marp-parent>.bespoke-marp-osc>button[data-bespoke-marp-osc=prev],body[data-bespoke-view=next] .bespoke-marp-parent>.bespoke-marp-osc>button[data-bespoke-marp-osc=fullscreen],body[data-bespoke-view=next] .bespoke-marp-parent>.bespoke-marp-osc>button[data-bespoke-marp-osc=next],body[data-bespoke-view=next] .bespoke-marp-parent>.bespoke-marp-osc>button[data-bespoke-marp-osc=presenter],body[data-bespoke-view=next] .bespoke-marp-parent>.bespoke-marp-osc>button[data-bespoke-marp-osc=prev]{height:32px;line-height:32px;width:32px}body[data-bespoke-view=""] .bespoke-marp-parent.bespoke-marp-inactive,body[data-bespoke-view=next] .bespoke-marp-parent.bespoke-marp-inactive{cursor:none}body[data-bespoke-view=""] .bespoke-marp-parent.bespoke-marp-inactive>.bespoke-marp-osc,body[data-bespoke-view=next] .bespoke-marp-parent.bespoke-marp-inactive>.bespoke-marp-osc{opacity:0;pointer-events:none}body[data-bespoke-view=""] svg.bespoke-marp-slide,body[data-bespoke-view=next] svg.bespoke-marp-slide{height:100%;left:0;position:absolute;top:0;width:100%}body[data-bespoke-view=""] .bespoke-progress-parent{background:#222;display:flex;height:5px;width:100%}body[data-bespoke-view=""] .bespoke-progress-parent+.bespoke-marp-parent{top:5px}body[data-bespoke-view=""] .bespoke-progress-parent .bespoke-progress-bar{flex:0 0 0;background:#0288d1;transition:flex-basis .2s cubic-bezier(0,1,1,1)}body[data-bespoke-view=next]{background:transparent}body[data-bespoke-view=presenter]{background:#161616}body[data-bespoke-view=presenter] .bespoke-marp-presenter-container{font-family:Helvetica,Arial,sans-serif;height:100%;left:0;position:absolute;top:0;width:100%;display:grid;grid-template-columns:2fr 1fr;grid-template-rows:minmax(140px,1fr) 2fr 3em;grid-template-areas:"current next" "current note" "info    note"}body[data-bespoke-view=presenter] .bespoke-marp-presenter-container .bespoke-marp-parent{grid-area:current;position:relative;overflow:hidden}body[data-bespoke-view=presenter] .bespoke-marp-presenter-container .bespoke-marp-parent svg.bespoke-marp-slide{height:calc(100% - 40px);left:20px;position:absolute;pointer-events:none;top:20px;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;width:calc(100% - 40px)}body[data-bespoke-view=presenter] .bespoke-marp-presenter-container .bespoke-marp-parent svg.bespoke-marp-slide.bespoke-marp-active{-webkit-filter:drop-shadow(0 3px 10px rgba(0,0,0,.5));filter:drop-shadow(0 3px 10px rgba(0,0,0,.5))}body[data-bespoke-view=presenter] .bespoke-marp-presenter-container .bespoke-marp-presenter-next-container{background:#222;cursor:pointer;display:none;grid-area:next;overflow:hidden;position:relative}body[data-bespoke-view=presenter] .bespoke-marp-presenter-container .bespoke-marp-presenter-next-container.active{display:block}body[data-bespoke-view=presenter] .bespoke-marp-presenter-container .bespoke-marp-presenter-next-container iframe.bespoke-marp-presenter-next{background:transparent;border:0;display:block;-webkit-filter:drop-shadow(0 3px 10px rgba(0,0,0,.5));filter:drop-shadow(0 3px 10px rgba(0,0,0,.5));height:calc(100% - 40px);left:20px;position:absolute;pointer-events:none;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;top:20px;width:calc(100% - 40px)}body[data-bespoke-view=presenter] .bespoke-marp-presenter-container .bespoke-marp-presenter-note-container{background:#222;color:#eee;grid-area:note}body[data-bespoke-view=presenter] .bespoke-marp-presenter-container .bespoke-marp-presenter-note-container .bespoke-marp-note{margin:20px;width:calc(100% - 40px);height:calc(100% - 40px);box-sizing:border-box;font-size:1.1em;overflow:auto;padding-right:3px;white-space:pre-wrap;word-wrap:break-word;scrollbar-width:thin;scrollbar-color:hsla(0,0%,93.3%,.5) transparent}body[data-bespoke-view=presenter] .bespoke-marp-presenter-container .bespoke-marp-presenter-note-container .bespoke-marp-note::-webkit-scrollbar{width:6px}body[data-bespoke-view=presenter] .bespoke-marp-presenter-container .bespoke-marp-presenter-note-container .bespoke-marp-note::-webkit-scrollbar-track{background:transparent}body[data-bespoke-view=presenter] .bespoke-marp-presenter-container .bespoke-marp-presenter-note-container .bespoke-marp-note::-webkit-scrollbar-thumb{background:hsla(0,0%,93.3%,.5);border-radius:6px}body[data-bespoke-view=presenter] .bespoke-marp-presenter-container .bespoke-marp-presenter-note-container .bespoke-marp-note:empty{pointer-events:none}body[data-bespoke-view=presenter] .bespoke-marp-presenter-container .bespoke-marp-presenter-note-container .bespoke-marp-note.active{display:block}body[data-bespoke-view=presenter] .bespoke-marp-presenter-container .bespoke-marp-presenter-note-container .bespoke-marp-note p:first-child{margin-top:0}body[data-bespoke-view=presenter] .bespoke-marp-presenter-container .bespoke-marp-presenter-note-container .bespoke-marp-note p:last-child{margin-bottom:0}body[data-bespoke-view=presenter] .bespoke-marp-presenter-container .bespoke-marp-presenter-info-container{align-items:center;box-sizing:border-box;color:#eee;display:flex;flex-wrap:nowrap;grid-area:info;justify-content:center;padding:0 10px}body[data-bespoke-view=presenter] .bespoke-marp-presenter-container .bespoke-marp-presenter-info-container .bespoke-marp-presenter-info-page,body[data-bespoke-view=presenter] .bespoke-marp-presenter-container .bespoke-marp-presenter-info-container .bespoke-marp-presenter-info-time,body[data-bespoke-view=presenter] .bespoke-marp-presenter-container .bespoke-marp-presenter-info-container .bespoke-marp-presenter-info-timer{display:block;box-sizing:border-box;padding:0 10px;white-space:nowrap;width:100%}body[data-bespoke-view=presenter] .bespoke-marp-presenter-container .bespoke-marp-presenter-info-container button{height:1.5em;line-height:1.5em;width:1.5em}body[data-bespoke-view=presenter] .bespoke-marp-presenter-container .bespoke-marp-presenter-info-container .bespoke-marp-presenter-info-page{order:2;text-align:center}body[data-bespoke-view=presenter] .bespoke-marp-presenter-container .bespoke-marp-presenter-info-container .bespoke-marp-presenter-info-page .bespoke-marp-presenter-info-page-text{display:inline-block;min-width:120px;text-align:center}body[data-bespoke-view=presenter] .bespoke-marp-presenter-container .bespoke-marp-presenter-info-container .bespoke-marp-presenter-info-time{color:#999;order:1;text-align:left}body[data-bespoke-view=presenter] .bespoke-marp-presenter-container .bespoke-marp-presenter-info-container .bespoke-marp-presenter-info-timer{color:#999;order:3;text-align:right}}@media print{.bespoke-marp-presenter-info-container,.bespoke-marp-presenter-next-container,.bespoke-marp-presenter-note-container{display:none}}</style><style>@charset "UTF-8";@import url("https://fonts.googleapis.com/css?family=Lato:400,900|Roboto+Mono:400,700&display=swap");div#p>svg>foreignObject>section{width:1280px;height:720px;box-sizing:border-box;overflow:hidden;position:relative;scroll-snap-align:center center}div#p>svg>foreignObject>section:after{bottom:0;content:attr(data-marpit-pagination);padding:inherit;pointer-events:none;position:absolute;right:0}div#p>svg>foreignObject>section:not([data-marpit-pagination]):after{display:none}/* Normalization */div#p>svg>foreignObject>section h1{font-size:2em;margin:0.67em 0}div#p>svg>foreignObject>section video::-webkit-media-controls{will-change:transform}@page{size:1280px 720px;margin:0}@media print{body,html{background-color:#fff;margin:0;page-break-inside:avoid;break-inside:avoid-page}div#p>svg>foreignObject>section{page-break-before:always;break-before:page}div#p>svg>foreignObject>section,div#p>svg>foreignObject>section *{-webkit-print-color-adjust:exact!important;animation-delay:0s!important;animation-duration:0s!important;color-adjust:exact!important;transition:none!important}div#p>svg[data-marpit-svg]{display:block;height:100vh;width:100vw}}div#p>svg>foreignObject>section svg[data-marp-fitting=svg]{display:block;height:auto;width:100%}@supports (-ms-ime-align:auto){div#p>svg>foreignObject>section svg[data-marp-fitting=svg]{position:static}}div#p>svg>foreignObject>section svg[data-marp-fitting=svg].__reflow__{content:""}@supports (-ms-ime-align:auto){div#p>svg>foreignObject>section svg[data-marp-fitting=svg].__reflow__{position:relative}}div#p>svg>foreignObject>section [data-marp-fitting-svg-content]{display:table;white-space:nowrap}div#p>svg>foreignObject>section [data-marp-fitting-svg-content-wrap]{white-space:pre}div#p>svg>foreignObject>section img[data-marp-twemoji]{background:transparent;height:1em;margin:0 .05em 0 .1em;vertical-align:-.1em;width:1em}
+/*!
+ * Marp / Marpit Gaia theme.
+ *
+ * @theme gaia
+ * @author Yuki Hattori
+ *
+ * @auto-scaling true
+ * @size 4:3 960px 720px
+ */div#p>svg>foreignObject>section .hljs{display:block;overflow-x:auto;padding:.5em;background:#000;color:#f8f8f8}div#p>svg>foreignObject>section .hljs-comment,div#p>svg>foreignObject>section .hljs-quote{color:#aeaeae;font-style:italic}div#p>svg>foreignObject>section .hljs-keyword,div#p>svg>foreignObject>section .hljs-selector-tag,div#p>svg>foreignObject>section .hljs-type{color:#e28964}div#p>svg>foreignObject>section .hljs-string{color:#65b042}div#p>svg>foreignObject>section .hljs-subst{color:#daefa3}div#p>svg>foreignObject>section .hljs-link,div#p>svg>foreignObject>section .hljs-regexp{color:#e9c062}div#p>svg>foreignObject>section .hljs-name,div#p>svg>foreignObject>section .hljs-section,div#p>svg>foreignObject>section .hljs-tag,div#p>svg>foreignObject>section .hljs-title{color:#89bdff}div#p>svg>foreignObject>section .hljs-class .hljs-title,div#p>svg>foreignObject>section .hljs-doctag{text-decoration:underline}div#p>svg>foreignObject>section .hljs-bullet,div#p>svg>foreignObject>section .hljs-number,div#p>svg>foreignObject>section .hljs-symbol{color:#3387cc}div#p>svg>foreignObject>section .hljs-params,div#p>svg>foreignObject>section .hljs-template-variable,div#p>svg>foreignObject>section .hljs-variable{color:#3e87e3}div#p>svg>foreignObject>section .hljs-attribute{color:#cda869}div#p>svg>foreignObject>section .hljs-meta{color:#8996a8}div#p>svg>foreignObject>section .hljs-formula{background-color:#0e2231;color:#f8f8f8;font-style:italic}div#p>svg>foreignObject>section .hljs-addition{background-color:#253b22;color:#f8f8f8}div#p>svg>foreignObject>section .hljs-deletion{background-color:#420e09;color:#f8f8f8}div#p>svg>foreignObject>section .hljs-selector-class{color:#9b703f}div#p>svg>foreignObject>section .hljs-selector-id{color:#8b98ab}div#p>svg>foreignObject>section .hljs-emphasis{font-style:italic}div#p>svg>foreignObject>section .hljs-strong{font-weight:700}div#p>svg>foreignObject>section svg[data-marp-fitting=svg]{max-height:580px}div#p>svg>foreignObject>section h1,div#p>svg>foreignObject>section h2,div#p>svg>foreignObject>section h3,div#p>svg>foreignObject>section h4,div#p>svg>foreignObject>section h5,div#p>svg>foreignObject>section h6{margin:.5em 0 0}div#p>svg>foreignObject>section h1 strong,div#p>svg>foreignObject>section h2 strong,div#p>svg>foreignObject>section h3 strong,div#p>svg>foreignObject>section h4 strong,div#p>svg>foreignObject>section h5 strong,div#p>svg>foreignObject>section h6 strong{font-weight:inherit}div#p>svg>foreignObject>section h1{font-size:1.8em}div#p>svg>foreignObject>section h2{font-size:1.5em}div#p>svg>foreignObject>section h3{font-size:1.3em}div#p>svg>foreignObject>section h4{font-size:1.1em}div#p>svg>foreignObject>section h5{font-size:1em}div#p>svg>foreignObject>section h6{font-size:.9em}div#p>svg>foreignObject>section blockquote,div#p>svg>foreignObject>section p{margin:1em 0 0}div#p>svg>foreignObject>section ol>li,div#p>svg>foreignObject>section ul>li{margin:.3em 0 0}div#p>svg>foreignObject>section ol>li>p,div#p>svg>foreignObject>section ul>li>p{margin:.6em 0 0}div#p>svg>foreignObject>section code{display:inline-block;font-family:Roboto Mono,monospace;font-size:.8em;letter-spacing:0;margin:-.1em .15em;padding:.1em .2em;vertical-align:baseline}div#p>svg>foreignObject>section pre{display:block;margin:1em 0 0;min-height:1em;overflow:visible}div#p>svg>foreignObject>section pre code{box-sizing:border-box;margin:0;min-width:100%;padding:.5em;font-size:.7em}div#p>svg>foreignObject>section pre code svg[data-marp-fitting=svg]{max-height:calc(580px - 1em)}div#p>svg>foreignObject>section blockquote{margin:1em 0 0;padding:0 1em;position:relative}div#p>svg>foreignObject>section blockquote:after,div#p>svg>foreignObject>section blockquote:before{content:"“";display:block;font-family:Times New Roman,serif;font-weight:700;position:absolute}div#p>svg>foreignObject>section blockquote:before{top:0;left:0}div#p>svg>foreignObject>section blockquote:after{right:0;bottom:0;transform:rotate(180deg)}div#p>svg>foreignObject>section blockquote>:first-child{margin-top:0}div#p>svg>foreignObject>section mark{background:transparent}div#p>svg>foreignObject>section table{border-spacing:0;border-collapse:collapse;margin:1em 0 0}div#p>svg>foreignObject>section table td,div#p>svg>foreignObject>section table th{padding:.2em .4em;border-width:1px;border-style:solid}div#p>svg>foreignObject>section{background-image:linear-gradient(135deg,hsla(0,0%,53.3%,0),hsla(0,0%,53.3%,.02) 50%,hsla(0,0%,100%,0) 0,hsla(0,0%,100%,.05));font-size:35px;font-family:Lato,Avenir Next,Avenir,Trebuchet MS,Segoe UI,sans-serif;height:720px;line-height:1.35;letter-spacing:1.25px;padding:70px;width:1280px;word-wrap:break-word;color:#455a64;background-color:#fff8e1}div#p>svg>foreignObject>section{--marpit-root-font-size:35px}div#p>svg>foreignObject>section>:first-child,div#p>svg>foreignObject>section>header:first-child+*{margin-top:0}div#p>svg>foreignObject>section a,div#p>svg>foreignObject>section mark{color:#0288d1}div#p>svg>foreignObject>section code{background:#6a7a7d;color:#fff8e1}div#p>svg>foreignObject>section h1 strong,div#p>svg>foreignObject>section h2 strong,div#p>svg>foreignObject>section h3 strong,div#p>svg>foreignObject>section h4 strong,div#p>svg>foreignObject>section h5 strong,div#p>svg>foreignObject>section h6 strong{color:#0288d1}div#p>svg>foreignObject>section pre>code{background:#455a64}div#p>svg>foreignObject>section blockquote:after,div#p>svg>foreignObject>section blockquote:before,div#p>svg>foreignObject>section footer,div#p>svg>foreignObject>section header,div#p>svg>foreignObject>section section:after{color:#6a7a7d}div#p>svg>foreignObject>section table td,div#p>svg>foreignObject>section table th{border-color:#455a64}div#p>svg>foreignObject>section table thead th{background:#455a64;color:#fff8e1}div#p>svg>foreignObject>section table tbody>tr:nth-child(odd) td,div#p>svg>foreignObject>section table tbody>tr:nth-child(odd) th{background:rgba(69,90,100,.1)}div#p>svg>foreignObject>section.invert{color:#fff8e1;background-color:#455a64}div#p>svg>foreignObject>section.invert a,div#p>svg>foreignObject>section.invert mark{color:#81d4fa}div#p>svg>foreignObject>section.invert code{background:#dad8c8;color:#455a64}div#p>svg>foreignObject>section.invert h1 strong,div#p>svg>foreignObject>section.invert h2 strong,div#p>svg>foreignObject>section.invert h3 strong,div#p>svg>foreignObject>section.invert h4 strong,div#p>svg>foreignObject>section.invert h5 strong,div#p>svg>foreignObject>section.invert h6 strong{color:#81d4fa}div#p>svg>foreignObject>section.invert pre>code{background:#fff8e1}div#p>svg>foreignObject>section.invert blockquote:after,div#p>svg>foreignObject>section.invert blockquote:before,div#p>svg>foreignObject>section.invert footer,div#p>svg>foreignObject>section.invert header,div#p>svg>foreignObject>section.invert section:after{color:#dad8c8}div#p>svg>foreignObject>section.invert table td,div#p>svg>foreignObject>section.invert table th{border-color:#fff8e1}div#p>svg>foreignObject>section.invert table thead th{background:#fff8e1;color:#455a64}div#p>svg>foreignObject>section.invert table tbody>tr:nth-child(odd) td,div#p>svg>foreignObject>section.invert table tbody>tr:nth-child(odd) th{background:rgba(255,248,225,.1)}div#p>svg>foreignObject>section.gaia{color:#fff8e1;background-color:#0288d1}div#p>svg>foreignObject>section.gaia a,div#p>svg>foreignObject>section.gaia mark{color:#81d4fa}div#p>svg>foreignObject>section.gaia code{background:#cce2de;color:#0288d1}div#p>svg>foreignObject>section.gaia h1 strong,div#p>svg>foreignObject>section.gaia h2 strong,div#p>svg>foreignObject>section.gaia h3 strong,div#p>svg>foreignObject>section.gaia h4 strong,div#p>svg>foreignObject>section.gaia h5 strong,div#p>svg>foreignObject>section.gaia h6 strong{color:#81d4fa}div#p>svg>foreignObject>section.gaia pre>code{background:#fff8e1}div#p>svg>foreignObject>section.gaia blockquote:after,div#p>svg>foreignObject>section.gaia blockquote:before,div#p>svg>foreignObject>section.gaia footer,div#p>svg>foreignObject>section.gaia header,div#p>svg>foreignObject>section.gaia section:after{color:#cce2de}div#p>svg>foreignObject>section.gaia table td,div#p>svg>foreignObject>section.gaia table th{border-color:#fff8e1}div#p>svg>foreignObject>section.gaia table thead th{background:#fff8e1;color:#0288d1}div#p>svg>foreignObject>section.gaia table tbody>tr:nth-child(odd) td,div#p>svg>foreignObject>section.gaia table tbody>tr:nth-child(odd) th{background:rgba(255,248,225,.1)}div#p>svg>foreignObject>section.lead{display:flex;flex-direction:column;flex-wrap:nowrap;justify-content:center}div#p>svg>foreignObject>section.lead h1,div#p>svg>foreignObject>section.lead h2,div#p>svg>foreignObject>section.lead h3,div#p>svg>foreignObject>section.lead h4,div#p>svg>foreignObject>section.lead h5,div#p>svg>foreignObject>section.lead h6{text-align:center}div#p>svg>foreignObject>section.lead h1 svg[data-marp-fitting=svg],div#p>svg>foreignObject>section.lead h2 svg[data-marp-fitting=svg],div#p>svg>foreignObject>section.lead h3 svg[data-marp-fitting=svg],div#p>svg>foreignObject>section.lead h4 svg[data-marp-fitting=svg],div#p>svg>foreignObject>section.lead h5 svg[data-marp-fitting=svg],div#p>svg>foreignObject>section.lead h6 svg[data-marp-fitting=svg]{--preserve-aspect-ratio:xMidYMid meet}div#p>svg>foreignObject>section.lead p{text-align:center}div#p>svg>foreignObject>section.lead blockquote>h1,div#p>svg>foreignObject>section.lead blockquote>h2,div#p>svg>foreignObject>section.lead blockquote>h3,div#p>svg>foreignObject>section.lead blockquote>h4,div#p>svg>foreignObject>section.lead blockquote>h5,div#p>svg>foreignObject>section.lead blockquote>h6,div#p>svg>foreignObject>section.lead blockquote>p{text-align:left}div#p>svg>foreignObject>section.lead blockquote svg[data-marp-fitting=svg]:not([data-marp-fitting-math]){--preserve-aspect-ratio:xMinYMin meet}div#p>svg>foreignObject>section.lead ol>li>p,div#p>svg>foreignObject>section.lead ul>li>p{text-align:left}div#p>svg>foreignObject>section.lead table{margin-left:auto;margin-right:auto}div#p>svg>foreignObject>section:after,div#p>svg>foreignObject>section footer,div#p>svg>foreignObject>section header{box-sizing:border-box;font-size:66%;height:70px;line-height:50px;overflow:hidden;padding:10px 25px;position:absolute}div#p>svg>foreignObject>section:after{--marpit-root-font-size:66%}div#p>svg>foreignObject>section header{top:0}div#p>svg>foreignObject>section footer,div#p>svg>foreignObject>section header{left:0;right:0}div#p>svg>foreignObject>section footer{bottom:0}div#p>svg>foreignObject>section:after{right:0;bottom:0;font-size:80%}div#p>svg>foreignObject>section:after{--marpit-root-font-size:80%}div#p>svg>foreignObject>section[data-marpit-advanced-background=background]{display:block!important;padding:0!important}div#p>svg>foreignObject>section[data-marpit-advanced-background=background]:after,div#p>svg>foreignObject>section[data-marpit-advanced-background=background]:before,div#p>svg>foreignObject>section[data-marpit-advanced-background=content]:after,div#p>svg>foreignObject>section[data-marpit-advanced-background=content]:before{display:none!important}div#p>svg>foreignObject>section[data-marpit-advanced-background=background]>div[data-marpit-advanced-background-container]{all:initial;display:flex;flex-direction:row;height:100%;overflow:hidden;width:100%}div#p>svg>foreignObject>section[data-marpit-advanced-background=background]>div[data-marpit-advanced-background-container][data-marpit-advanced-background-direction=vertical]{flex-direction:column}div#p>svg>foreignObject>section[data-marpit-advanced-background=background][data-marpit-advanced-background-split]>div[data-marpit-advanced-background-container]{width:var(--marpit-advanced-background-split,50%)}div#p>svg>foreignObject>section[data-marpit-advanced-background=background][data-marpit-advanced-background-split=right]>div[data-marpit-advanced-background-container]{margin-left:calc(100% - var(--marpit-advanced-background-split, 50%))}div#p>svg>foreignObject>section[data-marpit-advanced-background=background]>div[data-marpit-advanced-background-container]>figure{all:initial;background-position:center;background-repeat:no-repeat;background-size:cover;flex:auto;margin:0}div#p>svg>foreignObject>section[data-marpit-advanced-background=content],div#p>svg>foreignObject>section[data-marpit-advanced-background=pseudo]{background:transparent!important}div#p>svg>foreignObject>section[data-marpit-advanced-background=pseudo],div#p>svg[data-marpit-svg]>foreignObject[data-marpit-advanced-background=pseudo]{pointer-events:none!important}div#p>svg>foreignObject>section[data-marpit-advanced-background-split]{width:100%;height:100%}</style></head><body><div class="bespoke-marp-osc"><button data-bespoke-marp-osc="prev" tabindex="-1" title="Previous slide">Previous slide</button><span data-bespoke-marp-osc="page"></span><button data-bespoke-marp-osc="next" tabindex="-1" title="Next slide">Next slide</button><button data-bespoke-marp-osc="fullscreen" tabindex="-1" title="Toggle fullscreen (f)">Toggle fullscreen</button><button data-bespoke-marp-osc="presenter" tabindex="-1" title="Open presenter view (p)">Open presenter view</button></div><div id="p"><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="1" data-class="invert" data-background-color="black" data-theme="gaia" class="invert" style="--class:invert;--background-color:black;--theme:gaia;background-color:black;background-image:none;">
+<h1>SimpleRA</h1>
+<p><em>A laughably-minimalist, integer-only, read-only Relational Database Management System that makes the author question why they ever bothered to write it up!</em></p>
+<h2><em>Data Systems, Monsoon 2020</em></h2>
+<p>19th August, 2020<br />
+Wednesday</p>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="2" data-class="invert" data-background-color="black" data-theme="gaia" class="invert" style="--class:invert;--background-color:black;--theme:gaia;background-color:black;background-image:none;">
+<h3>Important Features</h3>
+<ul>
+<li>Relational Algebra Operators</li>
+<li>Integers Only</li>
+<li>No update operations</li>
+<li>No aggregate operations</li>
+<li>No nested queries</li>
+<li>No transaction management</li>
+<li>Single thread programming only</li>
+<li>No identifiers should have spaces in them</li>
+</ul>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="3" data-class="invert" data-background-color="black" data-theme="gaia" class="invert" style="--class:invert;--background-color:black;--theme:gaia;background-color:black;background-image:none;">
+<h3>Commands</h3>
+<p>There are 2 kinds of commands in this database.</p>
+<ul>
+<li>Assignment statements</li>
+<li>Non-assignment statements</li>
+</ul>
+<p><em>Note: Not all operators have been implemented, some have been omitted for you to implement in later phases</em></p>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="4" data-class="invert" data-background-color="black" data-theme="gaia" class="invert" style="--class:invert;--background-color:black;--theme:gaia;background-color:black;background-image:none;">
+<h2>Non Assignment Statements</h2>
+<p>Non-assginment statements do not create a new table (except load which just loads an existing table) in the process</p>
+<ul>
+<li>LOAD</li>
+<li>LIST</li>
+<li>PRINT</li>
+<li>RENAME</li>
+<li>EXPORT</li>
+<li>CLEAR</li>
+<li>QUIT</li>
+</ul>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="5" data-class="invert" data-background-color="black" data-theme="gaia" class="invert" style="--class:invert;--background-color:black;--theme:gaia;background-color:black;background-image:none;">
+<h2>Non Assignment Statements</h2>
+<p>The following haven't been implemented</p>
+<ul>
+<li>INDEX</li>
+</ul>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="6" data-class="invert" data-background-color="black" data-theme="gaia" class="invert" style="--class:invert;--background-color:black;--theme:gaia;background-color:black;background-image:none;">
+<h3>LOAD</h3>
+<p>Syntax:</p>
+<pre><code><svg data-marp-fitting="svg" data-marp-fitting-code><foreignObject><span data-marp-fitting-svg-content><span data-marp-fitting-svg-content-wrap><span class="hljs-keyword">LOAD</span> &lt;<span class="hljs-built_in">table_name</span>&gt;
+</span></span></foreignObject></svg></code></pre>
+<ul>
+<li>To successfully load a table, there should be a csv file names &lt;table_name&gt;.csv consisiting of comma-seperated integers in the data folder</li>
+<li>None of the columns in the data file should have the same name</li>
+<li>every cell in the table should have a value</li>
+</ul>
+<p>Run: <code>LOAD A</code></p>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="7" data-class="invert" data-background-color="black" data-theme="gaia" class="invert" style="--class:invert;--background-color:black;--theme:gaia;background-color:black;background-image:none;">
+<h3>LIST TABLES</h3>
+<p>Syntax</p>
+<pre><code><svg data-marp-fitting="svg" data-marp-fitting-code><foreignObject><span data-marp-fitting-svg-content><span data-marp-fitting-svg-content-wrap><span class="hljs-keyword">LIST</span> TABLES
+</span></span></foreignObject></svg></code></pre>
+<p>This command lists all tables that have been loaded or created using assignment statements</p>
+<p>Run: <code>LIST TABLES</code><br />
+Run: <code>LOAD B</code>, <code>LIST TABLES</code></p>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="8" data-class="invert" data-background-color="black" data-theme="gaia" class="invert" style="--class:invert;--background-color:black;--theme:gaia;background-color:black;background-image:none;">
+<h3>PRINT</h3>
+<p>Syntax</p>
+<pre><code><svg data-marp-fitting="svg" data-marp-fitting-code><foreignObject><span data-marp-fitting-svg-content><span data-marp-fitting-svg-content-wrap><span class="hljs-builtin-name">PRINT</span> &lt;table_name&gt;
+</span></span></foreignObject></svg></code></pre>
+<ul>
+<li>Displays the first PRINT_COUNT (global variable) rows of the table.</li>
+<li>Less number of rows can be printed if the table has only a few rows</li>
+</ul>
+<p>Run: <code>PRINT B</code></p>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="9" data-class="invert" data-background-color="black" data-theme="gaia" class="invert" style="--class:invert;--background-color:black;--theme:gaia;background-color:black;background-image:none;">
+<h3>RENAME</h3>
+<p>Syntax</p>
+<pre><code><svg data-marp-fitting="svg" data-marp-fitting-code><foreignObject><span data-marp-fitting-svg-content><span data-marp-fitting-svg-content-wrap><span class="hljs-keyword">RENAME</span> &lt;toColumnName&gt; <span class="hljs-keyword">TO</span> &lt;fromColumnName&gt; <span class="hljs-keyword">FROM</span> &lt;<span class="hljs-built_in">table_name</span>&gt;
+</span></span></foreignObject></svg></code></pre>
+<ul>
+<li>Naturally &lt;table_name&gt; should be a loaded table in the system and &lt;fromColumnName&gt; should be an exsiting column in the table</li>
+<li>&lt;toColumnName&gt; should not be another column in the table</li>
+</ul>
+<p>Run: <code>RENAME b TO c FROM B</code></p>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="10" data-class="invert" data-background-color="black" data-theme="gaia" class="invert" style="--class:invert;--background-color:black;--theme:gaia;background-color:black;background-image:none;">
+<h3>EXPORT</h3>
+<p>Syntax</p>
+<pre><code><svg data-marp-fitting="svg" data-marp-fitting-code><foreignObject><span data-marp-fitting-svg-content><span data-marp-fitting-svg-content-wrap><span class="hljs-builtin-name">EXPORT</span> &lt;table_name&gt;
+</span></span></foreignObject></svg></code></pre>
+<ul>
+<li>All changes made and new tables created, exist only within the system and will be deleted once execution ends (temp file)</li>
+<li>To keep changes made (RENAME and new tables), you have to export the table (data)</li>
+</ul>
+<p>Run: <code>EXPORT B</code></p>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="11" data-class="invert" data-background-color="black" data-theme="gaia" class="invert" style="--class:invert;--background-color:black;--theme:gaia;background-color:black;background-image:none;">
+<h3>CLEAR</h3>
+<p>Syntax</p>
+<pre><code><svg data-marp-fitting="svg" data-marp-fitting-code><foreignObject><span data-marp-fitting-svg-content><span data-marp-fitting-svg-content-wrap>CLEAR <span class="hljs-tag">&lt;<span class="hljs-name">table_name</span>&gt;</span>
+</span></span></foreignObject></svg></code></pre>
+<ul>
+<li>Removes table from system</li>
+<li>The table has to have previously existed in the system to remove it</li>
+<li>If you want to keep any of the changes you've made to an old table or want to keep the new table, make sure to export !</li>
+</ul>
+<p>Run: <code>CLEAR B</code></p>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="12" data-class="invert" data-background-color="black" data-theme="gaia" class="invert" style="--class:invert;--background-color:black;--theme:gaia;background-color:black;background-image:none;">
+<h3>QUIT</h3>
+<p>Syntax</p>
+<pre><code><svg data-marp-fitting="svg" data-marp-fitting-code><foreignObject><span data-marp-fitting-svg-content><span data-marp-fitting-svg-content-wrap><span class="hljs-keyword">QUIT</span>
+</span></span></foreignObject></svg></code></pre>
+<ul>
+<li>Clear all tables present in the system (<strong><em>WITHOUT EXPORTING THEM</em></strong>)  (temp file - empty)</li>
+</ul>
+<p>Run: <code>QUIT</code></p>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="13" data-class="invert" data-background-color="black" data-theme="gaia" class="invert" style="--class:invert;--background-color:black;--theme:gaia;background-color:black;background-image:none;">
+<h3>INDEX*</h3>
+<p>Syntax:</p>
+<pre><code><svg data-marp-fitting="svg" data-marp-fitting-code><foreignObject><span data-marp-fitting-svg-content><span data-marp-fitting-svg-content-wrap><span class="hljs-keyword">INDEX</span> <span class="hljs-keyword">ON</span> &lt;columnName&gt; <span class="hljs-keyword">FROM</span> &lt;<span class="hljs-built_in">table_name</span>&gt; <span class="hljs-keyword">USING</span> &lt;indexing_strategy&gt;
+</span></span></foreignObject></svg></code></pre>
+<p>Where &lt;indexing_strategy&gt; could be</p>
+<ul>
+<li><code>BTREE</code> - BTree indexing on column</li>
+<li><code>HASH</code> - Index via a hashmap</li>
+<li><code>NOTHING</code> - Removes index if present</li>
+</ul>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="14" data-class="invert" data-background-color="black" data-theme="gaia" class="invert" style="--class:invert;--background-color:black;--theme:gaia;background-color:black;background-image:none;">
+<h3>Questions ?</h3>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="15" data-class="invert" data-background-color="black" data-theme="gaia" class="invert" style="--class:invert;--background-color:black;--theme:gaia;background-color:black;background-image:none;">
+<h2>Assignment Statements</h2>
+<ul>
+<li>
+<p>All assignment statements lead to the creation of a new table.</p>
+</li>
+<li>
+<p>Every statement is of the form <code>&lt;new_table_name&gt; &lt;- &lt;assignment_statement&gt;</code></p>
+</li>
+<li>
+<p>Naturally in all cases, &lt;new_table_name&gt; shouldn't already exist in the system</p>
+</li>
+</ul>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="16" data-class="invert" data-background-color="black" data-theme="gaia" class="invert" style="--class:invert;--background-color:black;--theme:gaia;background-color:black;background-image:none;">
+<h2>Assignment Statements</h2>
+<ul>
+<li>CROSS</li>
+<li>PROJECTION</li>
+<li>SELECTION</li>
+</ul>
+<p>The following haven't been implemented</p>
+<ul>
+<li>DISTINCT</li>
+<li>JOIN</li>
+<li>SORT</li>
+</ul>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="17" data-class="invert" data-background-color="black" data-theme="gaia" class="invert" style="--class:invert;--background-color:black;--theme:gaia;background-color:black;background-image:none;">
+<h3>CROSS</h3>
+<p>Syntax</p>
+<pre><code><svg data-marp-fitting="svg" data-marp-fitting-code><foreignObject><span data-marp-fitting-svg-content><span data-marp-fitting-svg-content-wrap><span class="hljs-section">&lt;new_table_name&gt;</span> <span class="hljs-section">&lt;- CROSS &lt;table_name1&gt;</span> <span class="hljs-section">&lt;table_name2&gt;</span>
+</span></span></foreignObject></svg></code></pre>
+<ul>
+<li>Both the tables being crossed should exist in the system</li>
+<li>If there are columns with the same names in the two tables, the columns are indexed with the table name. If both tables being crossed are the same, table names are indexed with '1' and '2'</li>
+</ul>
+<p>Run: <code>cross_AA &lt;- CROSS A A</code></p>
+<p><code>A(A, B) x A(A, B) -&gt; cross_AA(A1_A, A1_B, A2_A, A2_B)</code></p>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="18" data-class="invert" data-background-color="black" data-theme="gaia" class="invert" style="--class:invert;--background-color:black;--theme:gaia;background-color:black;background-image:none;">
+<h3>SELECTION</h3>
+<p>Syntax</p>
+<pre><code><svg data-marp-fitting="svg" data-marp-fitting-code><foreignObject><span data-marp-fitting-svg-content><span data-marp-fitting-svg-content-wrap><span class="hljs-attribute">&lt;new_table_name&gt;</span> <span class="hljs-attribute">&lt;- SELECT &lt;condition&gt;</span> FROM <span class="hljs-attribute">&lt;table_name&gt;</span>
+</span></span></foreignObject></svg></code></pre>
+<p>Where &lt;condition&gt; is of either form</p>
+<pre><code><svg data-marp-fitting="svg" data-marp-fitting-code><foreignObject><span data-marp-fitting-svg-content><span data-marp-fitting-svg-content-wrap><span class="hljs-section">&lt;first_column_name&gt;</span> <span class="hljs-section">&lt;bin_op&gt;</span> <span class="hljs-section">&lt;second_column_name&gt;</span>
+<span class="hljs-section">&lt;first_column_name&gt;</span> <span class="hljs-section">&lt;bin_op&gt;</span> <span class="hljs-section">&lt;int_literal&gt;</span>
+</span></span></foreignObject></svg></code></pre>
+<p>Where &lt;bin_op&gt; can be any operator among {&gt;, &lt;, &gt;=, &lt;=, =&gt;, =&lt;, ==, !=}</p>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="19" data-class="invert" data-background-color="black" data-theme="gaia" class="invert" style="--class:invert;--background-color:black;--theme:gaia;background-color:black;background-image:none;">
+<ul>
+<li>The selection command only takes one condition at a time</li>
+</ul>
+<p>Run: <code>R &lt;- SELECT a &gt;= 1 FROM A</code><br />
+<code>S &lt;- SELECT a &gt; b FROM A</code></p>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="20" data-class="invert" data-background-color="black" data-theme="gaia" class="invert" style="--class:invert;--background-color:black;--theme:gaia;background-color:black;background-image:none;">
+<h3>PROJECTION</h3>
+<p>Syntax</p>
+<pre><code><svg data-marp-fitting="svg" data-marp-fitting-code><foreignObject><span data-marp-fitting-svg-content><span data-marp-fitting-svg-content-wrap><span class="hljs-attribute">&lt;new_table_name&gt;</span> <span class="hljs-attribute">&lt;- PROJECT &lt;column1&gt;</span>(,<span class="hljs-attribute">&lt;columnN&gt;</span>)* FROM <span class="hljs-attribute">&lt;table_name&gt;</span>
+</span></span></foreignObject></svg></code></pre>
+<ul>
+<li>naturally all columns should be present in the original table</li>
+</ul>
+<p>Run: <code>C &lt;- PROJECT c FROM A</code></p>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="21" data-class="invert" data-background-color="black" data-theme="gaia" class="invert" style="--class:invert;--background-color:black;--theme:gaia;background-color:black;background-image:none;">
+<h3>DISTINCT*</h3>
+<p>Syntax</p>
+<pre><code><svg data-marp-fitting="svg" data-marp-fitting-code><foreignObject><span data-marp-fitting-svg-content><span data-marp-fitting-svg-content-wrap><span class="hljs-section">&lt;new_table_name&gt;</span> <span class="hljs-section">&lt;- DISTINCT &lt;table_name&gt;</span>
+</span></span></foreignObject></svg></code></pre>
+<ul>
+<li>naturally table should exist</li>
+</ul>
+<p>Exmample: <code>D &lt;- DISTINCT A</code></p>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="22" data-class="invert" data-background-color="black" data-theme="gaia" class="invert" style="--class:invert;--background-color:black;--theme:gaia;background-color:black;background-image:none;">
+<h3>JOIN*</h3>
+<p>Syntax</p>
+<pre><code><svg data-marp-fitting="svg" data-marp-fitting-code><foreignObject><span data-marp-fitting-svg-content><span data-marp-fitting-svg-content-wrap><span class="hljs-attribute">&lt;new_relation_name&gt;</span> <span class="hljs-attribute">&lt;- JOIN &lt;table1&gt;</span>, <span class="hljs-attribute">&lt;table2&gt;</span> ON <span class="hljs-attribute">&lt;column1&gt;</span> <span class="hljs-attribute">&lt;bin_op&gt;</span> <span class="hljs-attribute">&lt;column2&gt;</span>
+</span></span></foreignObject></svg></code></pre>
+<p>Where &lt;bin_op&gt; means the same as it does in the SELECT operator</p>
+<ul>
+<li>Implicitly assumes &lt;column1&gt; is from &lt;table1&gt; and &lt;column2&gt; if from &lt;table2&gt;</li>
+</ul>
+<p>Example: <code>J &lt;- JOIN A, B ON a == a</code></p>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="23" data-class="invert" data-background-color="black" data-theme="gaia" class="invert" style="--class:invert;--background-color:black;--theme:gaia;background-color:black;background-image:none;">
+<h3>SORT*</h3>
+<p>Syntax</p>
+<pre><code><svg data-marp-fitting="svg" data-marp-fitting-code><foreignObject><span data-marp-fitting-svg-content><span data-marp-fitting-svg-content-wrap><span class="hljs-attribute">&lt;new_table_name&gt;</span> <span class="hljs-attribute">&lt;- SORT &lt;table_name&gt;</span> BY <span class="hljs-attribute">&lt;column_name&gt;</span> IN <span class="hljs-attribute">&lt;sorting_order&gt;</span>
+</span></span></foreignObject></svg></code></pre>
+<p>Where &lt;sorting_order&gt; can be <code>ASC</code> or <code>DESC</code></p>
+<p>Example: <code>S &lt;- SORT A BY b IN ASC</code></p>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="24" data-class="invert" data-background-color="black" data-theme="gaia" class="invert" style="--class:invert;--background-color:black;--theme:gaia;background-color:black;background-image:none;">
+<h3>SOURCE</h3>
+<p>Syntax</p>
+<pre><code><svg data-marp-fitting="svg" data-marp-fitting-code><foreignObject><span data-marp-fitting-svg-content><span data-marp-fitting-svg-content-wrap>SOURCE <span class="hljs-tag">&lt;<span class="hljs-name">query_name</span>&gt;</span>
+</span></span></foreignObject></svg></code></pre>
+<ul>
+<li>Special command that takes in a file script from the data directory</li>
+<li>file name should end in &quot;.ra&quot; indicating it's a query file</li>
+<li>File to be present in the data folder</li>
+<li>Used in last phase of project</li>
+</ul>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="25" data-class="invert" data-background-color="black" data-theme="gaia" class="invert" style="--class:invert;--background-color:black;--theme:gaia;background-color:black;background-image:none;">
+<h3>Internals</h3>
+<ul>
+<li>
+<p>Buffer Manager</p>
+</li>
+<li>
+<p>Cursors</p>
+</li>
+<li>
+<p>Tables</p>
+</li>
+<li>
+<p>Executors</p>
+</li>
+</ul>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="26" data-class="invert" data-background-color="black" data-theme="gaia" class="invert" style="--class:invert;--background-color:black;--theme:gaia;background-color:black;background-image:none;">
+<h3>Command Execution Flow</h3>
+<p><img src="flow.png" alt="" /></p>
+<p>Run: <code>LOAD A</code> with debugger</p>
+<p>see: load.cpp</p>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="27" data-class="invert" data-background-color="black" data-theme="gaia" class="invert" style="--class:invert;--background-color:black;--theme:gaia;background-color:black;background-image:none;">
+<h3>Syntactic Parser</h3>
+<ul>
+<li>Splits the query into query units</li>
+</ul>
+<p>see: syntacticParser.h syntacticParser.cpp</p>
+<h3>Semantic Parser</h3>
+<ul>
+<li>Makes sure your query makes semantic sense</li>
+</ul>
+<p>see: semanticParser.h semanticParser.cpp</p>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="28" data-class="invert" data-background-color="black" data-theme="gaia" class="invert" style="--class:invert;--background-color:black;--theme:gaia;background-color:black;background-image:none;">
+<h3>Executors</h3>
+<p>Every command(COMMAND) has a file in the executors directory, within that directory you'll find 3 functions</p>
+<pre><code><svg data-marp-fitting="svg" data-marp-fitting-code><foreignObject><span data-marp-fitting-svg-content><span data-marp-fitting-svg-content-wrap><span class="hljs-attribute">syntacticParseCOMMAND
+semanticParseCOMMAND
+executeCOMMAND</span>
+</span></span></foreignObject></svg></code></pre>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="29" data-class="invert" data-background-color="black" data-theme="gaia" class="invert" style="--class:invert;--background-color:black;--theme:gaia;background-color:black;background-image:none;">
+<h3>Buffer Manager</h3>
+<ul>
+<li>
+<p>Load splits and stores the table into blocks. For this we utilise the Buffer Manager</p>
+</li>
+<li>
+<p>Buffer Manager follows a FIFO paradigm. Essentially a queue</p>
+</li>
+</ul>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="30" data-class="invert" data-background-color="black" data-theme="gaia" class="invert" style="--class:invert;--background-color:black;--theme:gaia;background-color:black;background-image:none;">
+<h3>Table Catalogue</h3>
+<ul>
+<li>The table catalogue is an index of tables currently loaded into the system</li>
+</ul>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="31" data-class="invert" data-background-color="black" data-theme="gaia" class="invert" style="--class:invert;--background-color:black;--theme:gaia;background-color:black;background-image:none;">
+<h3>Cursors</h3>
+<p>A cursor is an object that acts like a pointer in a table. To read from a table, you need to declare a cursor.</p>
+<p><img src="cursor.png" alt="" /></p>
+<p>Run: <code>R &lt;- SELECT a == 1 FROM A</code> with debugger</p>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="32" data-class="invert" data-background-color="black" data-theme="gaia" class="invert" style="--class:invert;--background-color:black;--theme:gaia;background-color:black;background-image:none;">
+<h3>Logger</h3>
+<p>Every function call is logged in file names &quot;log&quot;</p>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="33" data-marpit-fragments="1" data-class="invert" data-background-color="black" data-theme="gaia" class="invert" style="--class:invert;--background-color:black;--theme:gaia;background-color:black;background-image:none;">
+<h2>Project*</h2>
+<ul>
+<li>Phase 1: Code Familiarity (to be released today/tomorrow max)</li>
+<li>Phase 2: 2 Phase Merge Sort</li>
+<li>Phase 3: Indexing</li>
+<li>Phase 4: Indexing Optimized Operators</li>
+<li>Phase 4: Optimisation (SOURCE)</li>
+</ul>
+<p><em>Note: may include duplicate elimination</em></p>
+<ul>
+<li data-marpit-fragment="1">Tentative</li>
+</ul>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="34" data-class="invert" data-background-color="black" data-theme="gaia" class="invert" style="--class:invert;--background-color:black;--theme:gaia;background-color:black;background-image:none;">
+<h2>Project Rules</h2>
+<ul>
+<li><strong>Plagiarism: F</strong></li>
+<li>Not sticking to submission guidelines will lead to penalties and at times to scoring 0</li>
+<li>Project phases build on top of each other, failing to do one phase may hinder the rest</li>
+<li>If for any reason you fail to complete the project on time, please mail the Prof directly for extensions and not the TAs, the TAs have no jurisdiction in these cases</li>
+</ul>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="35" data-class="invert" data-background-color="black" data-theme="gaia" class="invert" style="--class:invert;--background-color:black;--theme:gaia;background-color:black;background-image:none;">
+<h2>Adminstrative Rules</h2>
+<ul>
+<li>No informal contact with the TAs, you may post on Moodle regarding any doubts. A forum will be created for the same</li>
+<li>TA Hours have been updated on Moodle</li>
+<li>If you need to contact the TAs for matters that don't concern the whole class you may mail us here - <a href="mailto:datasystems_tas_m20@IIITAPhyd.onmicrosoft.com">datasystems_tas_m20@IIITAPhyd.onmicrosoft.com</a></li>
+</ul>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="36" data-class="invert" data-background-color="black" data-theme="gaia" class="invert" style="--class:invert;--background-color:black;--theme:gaia;background-color:black;background-image:none;">
+<h2>References</h2>
+<ul>
+<li>GitHub Repo - <a href="https://github.com/SimpleRA/SimpleRA">SimpleRA</a></li>
+<li>Build and run instructions will be provided later</li>
+</ul>
+</section>
+<script>!function(){"use strict";let t=void 0;function e(e){let r=!1;Array.from(document.querySelectorAll("svg[data-marpit-svg]"),i=>{const{children:o,clientHeight:n,clientWidth:a,viewBox:s}=i;i.style.transform||(i.style.transform="translateZ(0)");const l=e||window!==window.parent&&window.parent.marpitSVGPolyfillZoomFactor||i.currentScale||1;t!==l&&(t=l,r=l);const c=s.baseVal.width/l,d=s.baseVal.height/l,p=Math.min(n/d,a/c);for(let t=0;t<o.length;t+=1){const{style:e}=o[t].firstChild;e.position||(e.position="fixed"),e.transformOrigin||(e.transformOrigin="0 0"),e.transform=`scale(${p}) translateZ(0)`}}),!1!==r&&Object.defineProperty(window,"marpitSVGPolyfillZoomFactor",{configurable:!0,value:r})}const r=(t,e,r)=>{if(t.getAttribute(e)!==r)return t.setAttribute(e,r),!0};function i(t=!0){for(const t of"Apple Computer, Inc."===navigator.vendor?[e]:[])t();Array.from(document.querySelectorAll('svg[data-marp-fitting="svg"]'),t=>{var e;const i=t.firstChild,o=i.firstChild,{scrollWidth:n,scrollHeight:a}=o;let s,l=1;if(t.hasAttribute("data-marp-fitting-code")&&(s=null===(e=t.parentElement)||void 0===e?void 0:e.parentElement),t.hasAttribute("data-marp-fitting-math")&&(s=t.parentElement),s){const t=getComputedStyle(s),e=Math.ceil(s.clientWidth-parseFloat(t.paddingLeft||"0")-parseFloat(t.paddingRight||"0"));e&&(l=e)}const c=Math.max(n,l),d=Math.max(a,1),p=`0 0 ${c} ${d}`;r(i,"width",""+c),r(i,"height",""+d),r(t,"preserveAspectRatio",getComputedStyle(t).getPropertyValue("--preserve-aspect-ratio")||"xMinYMin meet"),r(t,"viewBox",p)&&t.classList.toggle("__reflow__")}),t&&window.requestAnimationFrame(()=>i(t))}!function(){if("undefined"==typeof window)throw new Error("Marp Core's browser script is valid only in browser context.");window.marpCoreBrowserScript?console.warn("Marp Core's browser script has already executed."):(Object.defineProperty(window,"marpCoreBrowserScript",{value:!0}),i())}()}();
+</script></foreignObject></svg></div><script>!function(){"use strict";var e=function(e,t){var n,r=1===(e.parent||e).nodeType?e.parent||e:document.querySelector(e.parent||e),a=[].filter.call("string"==typeof e.slides?r.querySelectorAll(e.slides):e.slides||r.children,(function(e){return"SCRIPT"!==e.nodeName})),s={},i=function(e,t){return(t=t||{}).index=a.indexOf(e),t.slide=e,t},o=function(e,t){s[e]=(s[e]||[]).filter((function(e){return e!==t}))},l=function(e,t){return(s[e]||[]).reduce((function(e,n){return e&&!1!==n(t)}),!0)},c=function(e,t){a[e]&&(n&&l("deactivate",i(n,t)),n=a[e],l("activate",i(n,t)))},d=function(e,t){var r=a.indexOf(n)+e;l(e>0?"next":"prev",i(n,t))&&c(r,t)},u={off:o,on:function(e,t){return(s[e]||(s[e]=[])).push(t),o.bind(null,e,t)},fire:l,slide:function(e,t){if(!arguments.length)return a.indexOf(n);l("slide",i(a[e],t))&&c(e,t)},next:d.bind(null,1),prev:d.bind(null,-1),parent:r,slides:a,destroy:function(e){l("destroy",i(n,e)),s={}}};return(t||[]).forEach((function(e){e(u)})),n||c(0),u};function t(e){e.parent.classList.add("bespoke-marp-parent"),e.slides.forEach(e=>e.classList.add("bespoke-marp-slide")),e.on("activate",t=>{const n=t.slide,r=!n.classList.contains("bespoke-marp-active");e.slides.forEach(e=>{e.classList.remove("bespoke-marp-active"),e.setAttribute("aria-hidden","true")}),n.classList.add("bespoke-marp-active"),n.removeAttribute("aria-hidden"),r&&(n.classList.add("bespoke-marp-active-ready"),document.body.clientHeight,n.classList.remove("bespoke-marp-active-ready"))})}function n(e){let t=0,n=0;Object.defineProperty(e,"fragments",{enumerable:!0,value:e.slides.map(e=>[null,...e.querySelectorAll("[data-marpit-fragment]")])});const r=r=>void 0!==e.fragments[t][n+r],a=(r,a)=>{t=r,n=a,e.fragments.forEach((e,t)=>{e.forEach((e,n)=>{if(null==e)return;const s=t<r||t===r&&n<=a;e.setAttribute("data-bespoke-marp-fragment",s?"active":"inactive"),t===r&&n===a?e.setAttribute("data-bespoke-marp-current-fragment","current"):e.removeAttribute("data-bespoke-marp-current-fragment")})}),e.fragmentIndex=a;const s={slide:e.slides[r],index:r,fragments:e.fragments[r],fragmentIndex:a};e.fire("fragment",s)};e.on("next",({fragment:s=!0})=>{if(s){if(r(1))return a(t,n+1),!1;const s=t+1;e.fragments[s]&&a(s,0)}else{const r=e.fragments[t].length;if(n+1<r)return a(t,r-1),!1;const s=e.fragments[t+1];s&&a(t+1,s.length-1)}}),e.on("prev",({fragment:s=!0})=>{if(r(-1)&&s)return a(t,n-1),!1;const i=t-1;e.fragments[i]&&a(i,e.fragments[i].length-1)}),e.on("slide",({index:t,fragment:n})=>{let r=0;if(void 0!==n){const a=e.fragments[t];if(a){const{length:e}=a;r=-1===n?e-1:Math.min(Math.max(n,0),e-1)}}a(t,r)}),a(0,0)}var r=function(e,t,n){return e(n={path:t,exports:{},require:function(e,t){return function(){throw new Error("Dynamic requires are not currently supported by @rollup/plugin-commonjs")}(null==t&&n.path)}},n.exports),n.exports}((function(e){
+/*!
+* screenfull
+* v5.0.2 - 2020-02-13
+* (c) Sindre Sorhus; MIT License
+*/
+!function(){var t="undefined"!=typeof window&&void 0!==window.document?window.document:{},n=e.exports,r=function(){for(var e,n=[["requestFullscreen","exitFullscreen","fullscreenElement","fullscreenEnabled","fullscreenchange","fullscreenerror"],["webkitRequestFullscreen","webkitExitFullscreen","webkitFullscreenElement","webkitFullscreenEnabled","webkitfullscreenchange","webkitfullscreenerror"],["webkitRequestFullScreen","webkitCancelFullScreen","webkitCurrentFullScreenElement","webkitCancelFullScreen","webkitfullscreenchange","webkitfullscreenerror"],["mozRequestFullScreen","mozCancelFullScreen","mozFullScreenElement","mozFullScreenEnabled","mozfullscreenchange","mozfullscreenerror"],["msRequestFullscreen","msExitFullscreen","msFullscreenElement","msFullscreenEnabled","MSFullscreenChange","MSFullscreenError"]],r=0,a=n.length,s={};r<a;r++)if((e=n[r])&&e[1]in t){for(r=0;r<e.length;r++)s[n[0][r]]=e[r];return s}return!1}(),a={change:r.fullscreenchange,error:r.fullscreenerror},s={request:function(e){return new Promise(function(n,a){var s=function(){this.off("change",s),n()}.bind(this);this.on("change",s);var i=(e=e||t.documentElement)[r.requestFullscreen]();i instanceof Promise&&i.then(s).catch(a)}.bind(this))},exit:function(){return new Promise(function(e,n){if(this.isFullscreen){var a=function(){this.off("change",a),e()}.bind(this);this.on("change",a);var s=t[r.exitFullscreen]();s instanceof Promise&&s.then(a).catch(n)}else e()}.bind(this))},toggle:function(e){return this.isFullscreen?this.exit():this.request(e)},onchange:function(e){this.on("change",e)},onerror:function(e){this.on("error",e)},on:function(e,n){var r=a[e];r&&t.addEventListener(r,n,!1)},off:function(e,n){var r=a[e];r&&t.removeEventListener(r,n,!1)},raw:r};r?(Object.defineProperties(s,{isFullscreen:{get:function(){return Boolean(t[r.fullscreenElement])}},element:{enumerable:!0,get:function(){return t[r.fullscreenElement]}},isEnabled:{enumerable:!0,get:function(){return Boolean(t[r.fullscreenEnabled])}}}),n?e.exports=s:window.screenfull=s):n?e.exports={isEnabled:!1}:window.screenfull={isEnabled:!1}}()}));function a(e){e.fullscreen=()=>{r.isEnabled&&r.toggle(document.body)},document.addEventListener("keydown",t=>{70!==t.which&&122!==t.which||t.altKey||t.ctrlKey||t.metaKey||!r.isEnabled||(e.fullscreen(),t.preventDefault())})}function s(e=2e3){return t=>{let n;function r(){n&&clearTimeout(n),n=setTimeout(()=>{t.parent.classList.add("bespoke-marp-inactive"),t.fire("marp-inactive")},e),t.parent.classList.contains("bespoke-marp-inactive")&&(t.parent.classList.remove("bespoke-marp-inactive"),t.fire("marp-active"))}document.addEventListener("mousedown",r),document.addEventListener("mousemove",r),document.addEventListener("touchend",r),setTimeout(r,0)}}const i=["AUDIO","BUTTON","INPUT","SELECT","TEXTAREA","VIDEO"];function o(e){e.parent.addEventListener("keydown",e=>{if(!e.target)return;const t=e.target;(i.includes(t.nodeName)||"true"===t.contentEditable)&&e.stopPropagation()})}function l(e){window.addEventListener("load",()=>{for(const t of e.slides){const e=t.querySelector("[data-marp-fitting]")?"":"hideable";t.setAttribute("data-bespoke-marp-load",e)}})}var c;function d({interval:e=200}={}){return t=>{document.addEventListener("keydown",e=>{if(32===e.which&&e.shiftKey)t.prev();else if(33===e.which||37===e.which||38===e.which)t.prev({fragment:!e.shiftKey});else if(32!==e.which||e.shiftKey)if(34===e.which||39===e.which||40===e.which)t.next({fragment:!e.shiftKey});else if(35===e.which)t.slide(t.slides.length-1,{fragment:-1});else{if(36!==e.which)return;t.slide(0)}else t.next();e.preventDefault()});let n,r,a=0;t.parent.addEventListener("wheel",s=>{let i=!1;const o=(e,t)=>{e&&(i=i||function(e,t){return function(e,t){const n=t===c.X?"Width":"Height";return e["client"+n]<e["scroll"+n]}(e,t)&&function(e,t){const{overflow:n}=e,r=e["overflow"+t];return"auto"===n||"scroll"===n||"auto"===r||"scroll"===r}(getComputedStyle(e),t)}(e,t)),(null==e?void 0:e.parentElement)&&o(e.parentElement,t)};if(0!==s.deltaX&&o(s.target,c.X),0!==s.deltaY&&o(s.target,c.Y),i)return;s.preventDefault(),r&&clearTimeout(r),r=setTimeout(()=>{n=0},e);const l=Date.now()-a<e,d=Math.sqrt(Math.pow(s.deltaX,2)+Math.pow(s.deltaY,2)),u=d<=n;if(n=d,l||u)return;let f;(s.deltaX>0||s.deltaY>0)&&(f="next"),(s.deltaX<0||s.deltaY<0)&&(f="prev"),f&&(t[f](),a=Date.now())})}}!function(e){e.X="X",e.Y="Y"}(c||(c={}));const u=(...e)=>history.replaceState(...e);var f;!function(e){e.Normal="",e.Presenter="presenter",e.Next="next"}(f||(f={}));const m=(e,{protocol:t,host:n,pathname:r,hash:a}=location)=>{const s=e.toString();return`${t}//${n}${r}${s?"?":""}${s}${a}`},p=()=>{switch(document.body.getAttribute("data-bespoke-view")){case f.Normal:return f.Normal;case f.Presenter:return f.Presenter;case f.Next:return f.Next;default:throw new Error("View mode is not assigned.")}},h=e=>new URLSearchParams(location.search).get(e),g=(e,t={})=>{const n=Object.assign({location:location,setter:u},t),r=new URLSearchParams(n.location.search);for(const t of Object.keys(e)){const n=e[t];"string"==typeof n?r.set(t,n):r.delete(t)}try{n.setter(null,document.title,m(r,n.location))}catch(e){console.error(e)}},v={available:(()=>{try{return localStorage.setItem("bespoke-marp","bespoke-marp"),localStorage.removeItem("bespoke-marp"),!0}catch(e){return console.warn("Warning: Using localStorage is restricted in the current host so some features may not work."),!1}})(),get:e=>{try{return localStorage.getItem(e)}catch(e){return null}},set:(e,t)=>{try{return localStorage.setItem(e,t),!0}catch(e){return!1}},remove:e=>{try{return localStorage.removeItem(e),!0}catch(e){return!1}}};function b(e=".bespoke-marp-osc"){const t=document.querySelector(e);if(!t)return()=>{};const n=(e,n)=>{t.querySelectorAll(`[data-bespoke-marp-osc=${JSON.stringify(e)}]`).forEach(n)};return r.isEnabled||n("fullscreen",e=>e.style.display="none"),v.available||n("presenter",e=>{e.disabled=!0,e.title="Presenter view is disabled due to restricted localStorage."}),e=>{t.addEventListener("click",t=>{if(t.target instanceof HTMLElement){const{bespokeMarpOsc:n}=t.target.dataset;switch(n&&t.target.blur(),n){case"next":e.next({fragment:!t.shiftKey});break;case"prev":e.prev({fragment:!t.shiftKey});break;case"fullscreen":"function"==typeof e.fullscreen&&r.isEnabled&&e.fullscreen();break;case"presenter":e.openPresenterView()}}}),e.parent.appendChild(t),e.on("activate",({index:t})=>{n("page",n=>n.textContent=`Page ${t+1} of ${e.slides.length}`)}),e.on("fragment",({index:t,fragments:r,fragmentIndex:a})=>{n("prev",e=>e.disabled=0===t&&0===a),n("next",n=>n.disabled=t===e.slides.length-1&&a===r.length-1)}),e.on("marp-active",()=>t.removeAttribute("aria-hidden")),e.on("marp-inactive",()=>t.setAttribute("aria-hidden","true")),r.isEnabled&&r.onchange(()=>n("fullscreen",e=>e.classList.toggle("exit",r.isEnabled&&r.isFullscreen)))}}function w(){const e=Math.max(Math.floor(.85*window.innerWidth),640),t=Math.max(Math.floor(.85*window.innerHeight),360);return window.open(this.presenterUrl,"bespoke-marp-presenter-"+this.syncKey,`width=${e},height=${t},menubar=no,toolbar=no`)}function y(){const e=new URLSearchParams(location.search);return e.set("view","presenter"),e.set("sync",this.syncKey),m(e)}var x=["area","base","br","col","command","embed","hr","img","input","keygen","link","meta","param","source","track","wbr"];let E=e=>String(e).replace(/[&<>"']/g,e=>`&${k[e]};`),k={"&":"amp","<":"lt",">":"gt",'"':"quot","'":"apos"},L="dangerouslySetInnerHTML",S={className:"class",htmlFor:"for"},I={};function P(e,t){let n=[],r="";t=t||{};for(let e=arguments.length;e-- >2;)n.push(arguments[e]);if("function"==typeof e)return t.children=n.reverse(),e(t);if(e){if(r+="<"+e,t)for(let e in t)!1!==t[e]&&null!=t[e]&&e!==L&&(r+=` ${S[e]?S[e]:E(e)}="${E(t[e])}"`);r+=">"}if(-1===x.indexOf(e)){if(t[L])r+=t[L].__html;else for(;n.length;){let e=n.pop();if(e)if(e.pop)for(let t=e.length;t--;)n.push(e[t]);else r+=!0===I[e]?e:E(e)}r+=e?`</${e}>`:""}return I[r]=!0,r}const M=({children:e})=>P(null,null,...e),N="bespoke-marp-presenter-container",F="bespoke-marp-presenter-next",O="bespoke-marp-presenter-next-container",q="bespoke-marp-presenter-note-container",C="bespoke-marp-presenter-info-container",T="bespoke-marp-presenter-info-page",A="bespoke-marp-presenter-info-page-text",K="bespoke-marp-presenter-info-page-prev",$="bespoke-marp-presenter-info-page-next",j="bespoke-marp-presenter-info-time",D="bespoke-marp-presenter-info-timer";function R(e){const{title:t}=document;document.title="[Presenter view]"+(t?" - "+t:"");const n={},r=e=>(n[e]=n[e]||document.querySelector("."+e),n[e]);document.body.appendChild((e=>{const t=document.createElement("div");return t.className=N,t.appendChild(e),t.insertAdjacentHTML("beforeend",P(M,null,P("div",{class:O},P("iframe",{class:F,src:"?view=next"})),P("div",{class:q}),P("div",{class:C},P("div",{class:T},P("button",{class:K,tabindex:"-1",title:"Previous"},"Previous"),P("span",{class:A}),P("button",{class:$,tabindex:"-1",title:"Next"},"Next")),P("time",{class:j,title:"Current time"}),P("div",{class:D})))),t})(e.parent)),(e=>{r(O).addEventListener("click",()=>e.next());const t=r(F),n=(a=t,(e,t)=>{var n;return null===(n=a.contentWindow)||void 0===n?void 0:n.postMessage(`navigate:${e},${t}`,"null"===window.origin?"*":window.origin)});var a;t.addEventListener("load",()=>{r(O).classList.add("active"),n(e.slide(),e.fragmentIndex),e.on("fragment",({index:e,fragmentIndex:t})=>n(e,t))});const s=document.querySelectorAll(".bespoke-marp-note");s.forEach(e=>{e.addEventListener("keydown",e=>e.stopPropagation()),r(q).appendChild(e)}),e.on("activate",()=>s.forEach(t=>t.classList.toggle("active",t.dataset.index==e.slide()))),e.on("activate",({index:t})=>{r(A).textContent=`${t+1} / ${e.slides.length}`});const i=r(K),o=r($);i.addEventListener("click",t=>{i.blur(),e.prev({fragment:!t.shiftKey})}),o.addEventListener("click",t=>{o.blur(),e.next({fragment:!t.shiftKey})}),e.on("fragment",({index:t,fragments:n,fragmentIndex:r})=>{i.disabled=0===t&&0===r,o.disabled=t===e.slides.length-1&&r===n.length-1});const l=()=>r(j).textContent=(new Date).toLocaleTimeString();l(),setInterval(l,250)})(e)}function U(e){const t=p();return t===f.Next&&e.appendChild(document.createElement("span")),e=>{t===f.Normal&&function(e){if(!(e=>e.syncKey&&"string"==typeof e.syncKey)(e))throw new Error("The current instance of Bespoke.js is invalid for Marp bespoke presenter plugin.");Object.defineProperties(e,{openPresenterView:{enumerable:!0,value:w},presenterUrl:{enumerable:!0,get:y}}),v.available&&document.addEventListener("keydown",t=>{80!==t.which||t.altKey||t.ctrlKey||t.metaKey||(t.preventDefault(),e.openPresenterView())})}(e),t===f.Presenter&&R(e),t===f.Next&&function(e){const t=t=>{if(t.origin!==window.origin)return;const[n,r]=t.data.split(":");if("navigate"===n){const[t,n]=r.split(",");let a=Number.parseInt(t,10),s=Number.parseInt(n,10)+1;s>=e.fragments[a].length&&(a+=1,s=0),e.slide(a,{fragment:s})}};window.addEventListener("message",t),e.on("destroy",()=>window.removeEventListener("message",t))}(e)}}function V(e){e.on("activate",t=>{document.querySelectorAll(".bespoke-progress-bar").forEach(n=>{n.style.flexBasis=100*t.index/(e.slides.length-1)+"%"})})}const X=e=>{const t=Number.parseInt(e,10);return Number.isNaN(t)?null:t};function Y(e={}){const t=Object.assign({history:!0},e);return e=>{let n=!0;const r=e=>{const t=n;try{return n=!0,e()}finally{n=t}},a=(t={fragment:!0})=>{((t,n)=>{const{fragments:r,slides:a}=e,s=Math.max(0,Math.min(t,a.length-1)),i=Math.max(0,Math.min(n||0,r[s].length-1));s===e.slide()&&i===e.fragmentIndex||e.slide(s,{fragment:i})})((X(location.hash.slice(1))||1)-1,t.fragment?X(h("f")||""):null)};e.on("fragment",({index:e,fragmentIndex:r})=>{n||g({f:0===r||r.toString()},{location:Object.assign(Object.assign({},location),{hash:"#"+(e+1)}),setter:(...e)=>t.history?history.pushState(...e):history.replaceState(...e)})}),setTimeout(()=>{a(),window.addEventListener("hashchange",()=>r(()=>{a({fragment:!1}),g({f:void 0})})),window.addEventListener("popstate",()=>{n||r(()=>a())}),n=!1},0)}}function B(e={}){const t=e.key||((e=21)=>{let t="",n=crypto.getRandomValues(new Uint8Array(e));for(;e--;){let r=63&n[e];t+=r<36?r.toString(36):r<62?(r-26).toString(36).toUpperCase():r<63?"_":"-"}return t})(),n="bespoke-marp-sync-"+t,r=()=>{const e=v.get(n);return e?JSON.parse(e):Object.create(null)},a=e=>{const t=r(),a=Object.assign(Object.assign({},t),e(t));return v.set(n,JSON.stringify(a)),a};return a(e=>({reference:(e.reference||0)+1})),e=>{Object.defineProperty(e,"syncKey",{value:t,enumerable:!0});let s=!0;setTimeout(()=>{e.on("fragment",e=>{s&&a(()=>({index:e.index,fragmentIndex:e.fragmentIndex}))})},0),window.addEventListener("storage",t=>{if(t.key===n&&t.oldValue&&t.newValue){const n=JSON.parse(t.oldValue),r=JSON.parse(t.newValue);if(n.index!==r.index||n.fragmentIndex!==r.fragmentIndex)try{s=!1,e.slide(r.index,{fragment:r.fragmentIndex})}finally{s=!0}}}),e.on("destroy",()=>{const{reference:e}=r();void 0===e||e<=1?v.remove(n):a(()=>({reference:e-1}))})}}function z({slope:e=Math.tan(-35*Math.PI/180),swipeThreshold:t=30}={}){return n=>{let r;const a=n.parent,s=e=>{const t=a.getBoundingClientRect();return{x:e.pageX-(t.left+t.right)/2,y:e.pageY-(t.top+t.bottom)/2}};a.addEventListener("touchstart",e=>{r=1===e.touches.length?s(e.touches[0]):void 0},{passive:!0}),a.addEventListener("touchmove",e=>{if(r)if(1===e.touches.length){e.preventDefault();const t=s(e.touches[0]),n=t.x-r.x,a=t.y-r.y;r.delta=Math.sqrt(Math.pow(Math.abs(n),2)+Math.pow(Math.abs(a),2)),r.radian=Math.atan2(n,a)}else r=void 0}),a.addEventListener("touchend",a=>{if(r){if(r.delta&&r.delta>=t&&r.radian){let t=r.radian-e;t=(t+Math.PI)%(2*Math.PI)-Math.PI,n[t<0?"next":"prev"](),a.stopPropagation()}r=void 0}},{passive:!0})}}
+/*! *****************************************************************************
+Copyright (c) Microsoft Corporation.
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE.
+***************************************************************************** */function H(e,t,n,r){return new(n||(n=Promise))((function(a,s){function i(e){try{l(r.next(e))}catch(e){s(e)}}function o(e){try{l(r.throw(e))}catch(e){s(e)}}function l(e){var t;e.done?a(e.value):(t=e.value,t instanceof n?t:new n((function(e){e(t)}))).then(i,o)}l((r=r.apply(e,t||[])).next())}))}let W=void 0;const J=()=>(void 0===W&&(W="wakeLock"in navigator&&navigator.wakeLock),W),_=()=>H(void 0,void 0,void 0,(function*(){const e=J();if(e)try{const t=yield e.request("screen");return t.addEventListener("release",()=>{console.debug("[Marp CLI] Wake Lock was released")}),console.debug("[Marp CLI] Wake Lock is active"),t}catch(e){console.warn(e)}return null}));function G(){return H(this,void 0,void 0,(function*(){if(!J())return;let e;const t=()=>{e&&"visible"===document.visibilityState&&_()};return document.addEventListener("visibilitychange",t),document.addEventListener("fullscreenchange",t),e=yield _(),e}))}const Q=[f.Normal,f.Presenter,f.Next];!function(r=document.getElementById("p")){document.body.setAttribute("data-bespoke-view",(()=>{switch(h("view")){case"next":return f.Next;case"presenter":return f.Presenter;default:return f.Normal}})());const i=(e=>{const t=h(e);return g({[e]:void 0}),t})("sync")||void 0,c=!1,u=!0,m=e(r,((...e)=>{const t=Q.findIndex(e=>p()===e);if(t<0)throw new Error("Invalid view");return e.map(([e,n])=>e[t]&&n).filter(e=>e)})([[u,u,c],B({key:i})],[[u,u,u],U(r)],[[u,u,c],o],[[u,u,u],t],[[u,c,c],s()],[[u,u,u],l],[[u,u,u],Y({history:!1})],[[u,u,c],d()],[[u,u,c],a],[[u,c,c],V],[[u,u,c],z()],[[u,c,c],b()],[[u,u,u],n],[[u,u,c],G]));window.addEventListener("beforeunload",()=>g({sync:m.syncKey})),window.addEventListener("unload",()=>m.destroy())}()}();</script></body></html>
+```
+
+--- ./src/table.h ---
+```
+#include "cursor.h"
+
+enum IndexingStrategy
+{
+    BTREE,
+    HASH,
+    NOTHING
+};
+
+/**
+ * @brief The Table class holds all information related to a loaded table. It
+ * also implements methods that interact with the parsers, executors, cursors
+ * and the buffer manager. There are typically 2 ways a table object gets
+ * created through the course of the workflow - the first is by using the LOAD
+ * command and the second is to use assignment statements (SELECT, PROJECT,
+ * JOIN, SORT, CROSS and DISTINCT). 
+ *
+ */
+class Table
+{
+    vector<unordered_set<int>> distinctValuesInColumns;
+
+public:
+    string sourceFileName = "";
+    string tableName = "";
+    vector<string> columns;
+    vector<uint> distinctValuesPerColumnCount;
+    uint columnCount = 0;
+    long long int rowCount = 0;
+    uint blockCount = 0;
+    uint maxRowsPerBlock = 0;
+    vector<uint> rowsPerBlockCount;
+    bool indexed = false;
+    string indexedColumn = "";
+    IndexingStrategy indexingStrategy = NOTHING;
+    
+    bool extractColumnNames(string firstLine);
+    bool blockify();
+    void updateStatistics(vector<int> row);
+    Table();
+    Table(string tableName);
+    Table(string tableName, vector<string> columns);
+    bool load();
+    bool isColumn(string columnName);
+    void renameColumn(string fromColumnName, string toColumnName);
+    void print();
+    void makePermanent();
+    bool isPermanent();
+    void getNextPage(Cursor *cursor);
+    Cursor getCursor();
+    int getColumnIndex(string columnName);
+    void unload();
+
+    /**
+ * @brief Static function that takes a vector of valued and prints them out in a
+ * comma seperated format.
+ *
+ * @tparam T current usaages include int and string
+ * @param row 
+ */
+template <typename T>
+void writeRow(vector<T> row, ostream &fout)
+{
+    logger.log("Table::printRow");
+    for (int columnCounter = 0; columnCounter < row.size(); columnCounter++)
+    {
+        if (columnCounter != 0)
+            fout << ", ";
+        fout << row[columnCounter];
+    }
+    fout << endl;
+}
+
+/**
+ * @brief Static function that takes a vector of valued and prints them out in a
+ * comma seperated format.
+ *
+ * @tparam T current usaages include int and string
+ * @param row 
+ */
+template <typename T>
+void writeRow(vector<T> row)
+{
+    logger.log("Table::printRow");
+    ofstream fout(this->sourceFileName, ios::app);
+    this->writeRow(row, fout);
+    fout.close();
+}
+};
+```
+
+--- ./src/bufferManager.h ---
+```
+#include"page.h"
+
+/**
+ * @brief The BufferManager is responsible for reading pages to the main memory.
+ * Recall that large files are broken and stored as blocks in the hard disk. The
+ * minimum amount of memory that can be read from the disk is a block whose size
+ * is indicated by BLOCK_SIZE. within this system we simulate blocks by
+ * splitting and storing the file as multiple files each of one BLOCK_SIZE,
+ * although this isn't traditionally how it's done. You can alternatively just
+ * random access to the point where a block begins within the same
+ * file. In this system we assume that the the sizes of blocks and pages are the
+ * same. 
+ * 
+ * <p>
+ * The buffer can hold multiple pages quantified by BLOCK_COUNT. The
+ * buffer manager follows the FIFO replacement policy i.e. the first block to be
+ * read in is replaced by the new incoming block. This replacement policy should
+ * be transparent to the executors i.e. the executor should not know if a block
+ * was previously present in the buffer or was read in from the disk. 
+ * </p>
+ *
+ */
+class BufferManager{
+
+    deque<Page> pages; 
+    bool inPool(string pageName);
+    Page getFromPool(string pageName);
+    Page insertIntoPool(string tableName, int pageIndex);
+
+    public:
+    
+    BufferManager();
+    Page getPage(string tableName, int pageIndex);
+    void writePage(string pageName, vector<vector<int>> rows);
+    void deleteFile(string tableName, int pageIndex);
+    void deleteFile(string fileName);
+    void writePage(string tableName, int pageIndex, vector<vector<int>> rows, int rowCount);
+};
+```
+
+--- ./src/server.cpp ---
+```
+//Server Code
+#include "global.h"
+
+using namespace std;
+
+float BLOCK_SIZE = 1;
+uint BLOCK_COUNT = 2;
+uint PRINT_COUNT = 20;
+Logger logger;
+vector<string> tokenizedQuery;
+ParsedQuery parsedQuery;
+TableCatalogue tableCatalogue;
+BufferManager bufferManager;
+
+void doCommand()
+{
+    logger.log("doCommand");
+    if (syntacticParse() && semanticParse())
+        executeCommand();
+    return;
+}
+
+int main(void)
+{
+
+    regex delim("[^\\s,]+");
+    string command;
+    system("rm -rf ../data/temp");
+    system("mkdir ../data/temp");
+
+    while(!cin.eof())
+    {
+        cout << "\n> ";
+        tokenizedQuery.clear();
+        parsedQuery.clear();
+        logger.log("\nReading New Command: ");
+        getline(cin, command);
+        logger.log(command);
+
+
+        auto words_begin = std::sregex_iterator(command.begin(), command.end(), delim);
+        auto words_end = std::sregex_iterator();
+        for (std::sregex_iterator i = words_begin; i != words_end; ++i)
+            tokenizedQuery.emplace_back((*i).str());
+
+        if (tokenizedQuery.size() == 1 && tokenizedQuery.front() == "QUIT")
+        {
+            break;
+        }
+
+        if (tokenizedQuery.empty())
+        {
+            continue;
+        }
+
+        if (tokenizedQuery.size() == 1)
+        {
+            cout << "SYNTAX ERROR" << endl;
+            continue;
+        }
+
+        doCommand();
+    }
+}
+```
+
+--- ./src/logger.h ---
+```
+#include<iostream>
+#include<bits/stdc++.h>
+#include<sys/stat.h> 
+#include<fstream>
+
+using namespace std;
+
+class Logger{
+
+    string logFile = "log";
+    ofstream fout;
+    
+    public:
+
+    Logger();
+    void log(string logString);
+};
+
+extern Logger logger;
+```
+
+--- ./src/semanticParser.h ---
+```
+#include"syntacticParser.h"
+
+bool semanticParse();
+
+bool semanticParseCLEAR();
+bool semanticParseCROSS();
+bool semanticParseDISTINCT();
+bool semanticParseEXPORT();
+bool semanticParseINDEX();
+bool semanticParseJOIN();
+bool semanticParseLIST();
+bool semanticParseLOAD();
+bool semanticParsePRINT();
+bool semanticParsePROJECTION();
+bool semanticParseRENAME();
+bool semanticParseSELECTION();
+bool semanticParseSORT();
+bool semanticParseSOURCE();
+```
+
+--- ./src/executor.h ---
+```
+#include"semanticParser.h"
+
+void executeCommand();
+
+void executeCLEAR();
+void executeCROSS();
+void executeDISTINCT();
+void executeEXPORT();
+void executeINDEX();
+void executeJOIN();
+void executeLIST();
+void executeLOAD();
+void executePRINT();
+void executePROJECTION();
+void executeRENAME();
+void executeSELECTION();
+void executeSORT();
+void executeSOURCE();
+
+bool evaluateBinOp(int value1, int value2, BinaryOperator binaryOperator);
+void printRowCount(int rowCount);
+```
+
+--- ./src/logger.cpp ---
+```
+#include "global.h"
+
+Logger::Logger()
+{
+    this->fout.open(this->logFile, ios::out);
+}
+
+void Logger::log(string logString)
+{
+    fout << logString << endl;
+}
+
+```
+
+--- ./src/cursor.h ---
+```
+#include"bufferManager.h"
+/**
+ * @brief The cursor is an important component of the system. To read from a
+ * table, you need to initialize a cursor. The cursor reads rows from a page one
+ * at a time.
+ *
+ */
+class Cursor{
+    public:
+    Page page;
+    int pageIndex;
+    string tableName;
+    int pagePointer;
+
+    public:
+    Cursor(string tableName, int pageIndex);
+    vector<int> getNext();
+    void nextPage(int pageIndex);
+};
+```
+
+--- ./src/tableCatalogue.h ---
+```
+#include "table.h"
+
+/**
+ * @brief The TableCatalogue acts like an index of tables existing in the
+ * system. Everytime a table is added(removed) to(from) the system, it needs to
+ * be added(removed) to(from) the tableCatalogue. 
+ *
+ */
+class TableCatalogue
+{
+
+    unordered_map<string, Table*> tables;
+
+public:
+    TableCatalogue() {}
+    void insertTable(Table* table);
+    void deleteTable(string tableName);
+    Table* getTable(string tableName);
+    bool isTable(string tableName);
+    bool isColumnFromTable(string columnName, string tableName);
+    void print();
+    ~TableCatalogue();
+};
+```
+
+--- ./src/global.h ---
+```
+#include"executor.h"
+
+extern float BLOCK_SIZE;
+extern uint BLOCK_COUNT;
+extern uint PRINT_COUNT;
+extern vector<string> tokenizedQuery;
+extern ParsedQuery parsedQuery;
+extern TableCatalogue tableCatalogue;
+extern BufferManager bufferManager;
+```
+
+--- ./src/syntacticParser.h ---
+```
+#include "tableCatalogue.h"
+
+using namespace std;
+
+enum QueryType
+{
+    CLEAR,
+    CROSS,
+    DISTINCT,
+    EXPORT,
+    INDEX,
+    JOIN,
+    LIST,
+    LOAD,
+    PRINT,
+    PROJECTION,
+    RENAME,
+    SELECTION,
+    SORT,
+    SOURCE,
+    UNDETERMINED
+};
+
+enum BinaryOperator
+{
+    LESS_THAN,
+    GREATER_THAN,
+    LEQ,
+    GEQ,
+    EQUAL,
+    NOT_EQUAL,
+    NO_BINOP_CLAUSE
+};
+
+enum SortingStrategy
+{
+    ASC,
+    DESC,
+    NO_SORT_CLAUSE
+};
+
+enum SelectType
+{
+    COLUMN,
+    INT_LITERAL,
+    NO_SELECT_CLAUSE
+};
+
+class ParsedQuery
+{
+
+public:
+    QueryType queryType = UNDETERMINED;
+
+    string clearRelationName = "";
+
+    string crossResultRelationName = "";
+    string crossFirstRelationName = "";
+    string crossSecondRelationName = "";
+
+    string distinctResultRelationName = "";
+    string distinctRelationName = "";
+
+    string exportRelationName = "";
+
+    IndexingStrategy indexingStrategy = NOTHING;
+    string indexColumnName = "";
+    string indexRelationName = "";
+
+    BinaryOperator joinBinaryOperator = NO_BINOP_CLAUSE;
+    string joinResultRelationName = "";
+    string joinFirstRelationName = "";
+    string joinSecondRelationName = "";
+    string joinFirstColumnName = "";
+    string joinSecondColumnName = "";
+
+    string loadRelationName = "";
+
+    string printRelationName = "";
+
+    string projectionResultRelationName = "";
+    vector<string> projectionColumnList;
+    string projectionRelationName = "";
+
+    string renameFromColumnName = "";
+    string renameToColumnName = "";
+    string renameRelationName = "";
+
+    SelectType selectType = NO_SELECT_CLAUSE;
+    BinaryOperator selectionBinaryOperator = NO_BINOP_CLAUSE;
+    string selectionResultRelationName = "";
+    string selectionRelationName = "";
+    string selectionFirstColumnName = "";
+    string selectionSecondColumnName = "";
+    int selectionIntLiteral = 0;
+
+    SortingStrategy sortingStrategy = NO_SORT_CLAUSE;
+    string sortResultRelationName = "";
+    string sortColumnName = "";
+    string sortRelationName = "";
+
+    string sourceFileName = "";
+
+    ParsedQuery();
+    void clear();
+};
+
+bool syntacticParse();
+bool syntacticParseCLEAR();
+bool syntacticParseCROSS();
+bool syntacticParseDISTINCT();
+bool syntacticParseEXPORT();
+bool syntacticParseINDEX();
+bool syntacticParseJOIN();
+bool syntacticParseLIST();
+bool syntacticParseLOAD();
+bool syntacticParsePRINT();
+bool syntacticParsePROJECTION();
+bool syntacticParseRENAME();
+bool syntacticParseSELECTION();
+bool syntacticParseSORT();
+bool syntacticParseSOURCE();
+
+bool isFileExists(string tableName);
+bool isQueryFile(string fileName);
+
+```
+
+--- ./src/clear.cpp ---
+```
+#include "global.h"
+
+/**
+ * @brief 
+ * SYNTAX: CLEAR <relation_name> 
+ */
+
+bool syntacticParseCLEAR()
+{
+    logger.log("syntacticParseCLEAR");
+    if (tokenizedQuery.size() != 2)
+    {
+        cout << "SYNTAX ERROR" << endl;
+        return false;
+    }
+    parsedQuery.queryType = CLEAR;
+    parsedQuery.clearRelationName = tokenizedQuery[1];
+    return true;
+}
+
+bool semanticParseCLEAR()
+{
+    logger.log("semanticParseCLEAR");
+    //Table should exist
+    if (tableCatalogue.isTable(parsedQuery.clearRelationName))
+        return true;
+    cout << "SEMANTIC ERROR: No such relation exists" << endl;
+    return false;
+}
+
+void executeCLEAR()
+{
+    logger.log("executeCLEAR");
+    //Deleting table from the catalogue deletes all temporary files
+    tableCatalogue.deleteTable(parsedQuery.clearRelationName);
+    return;
+}
+```
+
+--- ./src/out ---
+```
+
+> Loaded Table. Column Count: 2 Row Count: 2
+
+> C, B
+1, 2
+2, 3
+
+
+Row Count: 2
+
+> 
+> 
+> 
+```
+
+--- ./src/syntacticParser.cpp ---
+```
+#include "global.h"
+
+bool syntacticParse()
+{
+    logger.log("syntacticParse");
+    string possibleQueryType = tokenizedQuery[0];
+
+    if (tokenizedQuery.size() < 2)
+    {
+        cout << "SYNTAX ERROR" << endl;
+        return false;
+    }
+
+    if (possibleQueryType == "CLEAR")
+        return syntacticParseCLEAR();
+    else if (possibleQueryType == "INDEX")
+        return syntacticParseINDEX();
+    else if (possibleQueryType == "LIST")
+        return syntacticParseLIST();
+    else if (possibleQueryType == "LOAD")
+        return syntacticParseLOAD();
+    else if (possibleQueryType == "PRINT")
+        return syntacticParsePRINT();
+    else if (possibleQueryType == "RENAME")
+        return syntacticParseRENAME();
+    else if(possibleQueryType == "EXPORT")
+        return syntacticParseEXPORT();
+    else if(possibleQueryType == "SOURCE")
+        return syntacticParseSOURCE();
+    else
+    {
+        string resultantRelationName = possibleQueryType;
+        if (tokenizedQuery[1] != "<-" || tokenizedQuery.size() < 3)
+        {
+            cout << "SYNTAX ERROR" << endl;
+            return false;
+        }
+        possibleQueryType = tokenizedQuery[2];
+        if (possibleQueryType == "PROJECT")
+            return syntacticParsePROJECTION();
+        else if (possibleQueryType == "SELECT")
+            return syntacticParseSELECTION();
+        else if (possibleQueryType == "JOIN")
+            return syntacticParseJOIN();
+        else if (possibleQueryType == "CROSS")
+            return syntacticParseCROSS();
+        else if (possibleQueryType == "DISTINCT")
+            return syntacticParseDISTINCT();
+        else if (possibleQueryType == "SORT")
+            return syntacticParseSORT();
+        else
+        {
+            cout << "SYNTAX ERROR" << endl;
+            return false;
+        }
+    }
+    return false;
+}
+
+ParsedQuery::ParsedQuery()
+{
+}
+
+void ParsedQuery::clear()
+{
+    logger.log("ParseQuery::clear");
+    this->queryType = UNDETERMINED;
+
+    this->clearRelationName = "";
+
+    this->crossResultRelationName = "";
+    this->crossFirstRelationName = "";
+    this->crossSecondRelationName = "";
+
+    this->distinctResultRelationName = "";
+    this->distinctRelationName = "";
+
+    this->exportRelationName = "";
+
+    this->indexingStrategy = NOTHING;
+    this->indexColumnName = "";
+    this->indexRelationName = "";
+
+    this->joinBinaryOperator = NO_BINOP_CLAUSE;
+    this->joinResultRelationName = "";
+    this->joinFirstRelationName = "";
+    this->joinSecondRelationName = "";
+    this->joinFirstColumnName = "";
+    this->joinSecondColumnName = "";
+
+    this->loadRelationName = "";
+
+    this->printRelationName = "";
+
+    this->projectionResultRelationName = "";
+    this->projectionColumnList.clear();
+    this->projectionRelationName = "";
+
+    this->renameFromColumnName = "";
+    this->renameToColumnName = "";
+    this->renameRelationName = "";
+
+    this->selectType = NO_SELECT_CLAUSE;
+    this->selectionBinaryOperator = NO_BINOP_CLAUSE;
+    this->selectionResultRelationName = "";
+    this->selectionRelationName = "";
+    this->selectionFirstColumnName = "";
+    this->selectionSecondColumnName = "";
+    this->selectionIntLiteral = 0;
+
+    this->sortingStrategy = NO_SORT_CLAUSE;
+    this->sortResultRelationName = "";
+    this->sortColumnName = "";
+    this->sortRelationName = "";
+
+    this->sourceFileName = "";
+}
+
+/**
+ * @brief Checks to see if source file exists. Called when LOAD command is
+ * invoked.
+ *
+ * @param tableName 
+ * @return true 
+ * @return false 
+ */
+bool isFileExists(string tableName)
+{
+    string fileName = "../data/" + tableName + ".csv";
+    struct stat buffer;
+    return (stat(fileName.c_str(), &buffer) == 0);
+}
+
+/**
+ * @brief Checks to see if source file exists. Called when SOURCE command is
+ * invoked.
+ *
+ * @param tableName 
+ * @return true 
+ * @return false 
+ */
+bool isQueryFile(string fileName){
+    fileName = "../data/" + fileName + ".ra";
+    struct stat buffer;
+    return (stat(fileName.c_str(), &buffer) == 0);
+}
+
+```
+
+--- ./src/cursor.cpp ---
+```
+#include "global.h"
+
+Cursor::Cursor(string tableName, int pageIndex)
+{
+    logger.log("Cursor::Cursor");
+    this->page = bufferManager.getPage(tableName, pageIndex);
+    this->pagePointer = 0;
+    this->tableName = tableName;
+    this->pageIndex = pageIndex;
+}
+
+/**
+ * @brief This function reads the next row from the page. The index of the
+ * current row read from the page is indicated by the pagePointer(points to row
+ * in page the cursor is pointing to).
+ *
+ * @return vector<int> 
+ */
+vector<int> Cursor::getNext()
+{
+    logger.log("Cursor::geNext");
+    vector<int> result = this->page.getRow(this->pagePointer);
+    this->pagePointer++;
+    if(result.empty()){
+        tableCatalogue.getTable(this->tableName)->getNextPage(this);
+        if(!this->pagePointer){
+            result = this->page.getRow(this->pagePointer);
+            this->pagePointer++;
+        }
+    }
+    return result;
+}
+/**
+ * @brief Function that loads Page indicated by pageIndex. Now the cursor starts
+ * reading from the new page.
+ *
+ * @param pageIndex 
+ */
+void Cursor::nextPage(int pageIndex)
+{
+    logger.log("Cursor::nextPage");
+    this->page = bufferManager.getPage(this->tableName, pageIndex);
+    this->pageIndex = pageIndex;
+    this->pagePointer = 0;
+}
+```
+
+--- ./src/executor.cpp ---
+```
+#include"global.h"
+
+void executeCommand(){
+
+    switch(parsedQuery.queryType){
+        case CLEAR: executeCLEAR(); break;
+        case CROSS: executeCROSS(); break;
+        case DISTINCT: executeDISTINCT(); break;
+        case EXPORT: executeEXPORT(); break;
+        case INDEX: executeINDEX(); break;
+        case JOIN: executeJOIN(); break;
+        case LIST: executeLIST(); break;
+        case LOAD: executeLOAD(); break;
+        case PRINT: executePRINT(); break;
+        case PROJECTION: executePROJECTION(); break;
+        case RENAME: executeRENAME(); break;
+        case SELECTION: executeSELECTION(); break;
+        case SORT: executeSORT(); break;
+        case SOURCE: executeSOURCE(); break;
+        default: cout<<"PARSING ERROR"<<endl;
+    }
+
+    return;
+}
+
+void printRowCount(int rowCount){
+    cout<<"\n\nRow Count: "<<rowCount<<endl;
+    return;
+}
+```
+
+--- ./src/page.h ---
+```
+#include"logger.h"
+/**
+ * @brief The Page object is the main memory representation of a physical page
+ * (equivalent to a block). The page class and the page.h header file are at the
+ * bottom of the dependency tree when compiling files. 
+ *<p>
+ * Do NOT modify the Page class. If you find that modifications
+ * are necessary, you may do so by posting the change you want to make on Moodle
+ * or Teams with justification and gaining approval from the TAs. 
+ *</p>
+ */
+
+class Page{
+
+    string tableName;
+    string pageIndex;
+    int columnCount;
+    int rowCount;
+    vector<vector<int>> rows;
+
+    public:
+
+    string pageName = "";
+    Page();
+    Page(string tableName, int pageIndex);
+    Page(string tableName, int pageIndex, vector<vector<int>> rows, int rowCount);
+    vector<int> getRow(int rowIndex);
+    void writePage();
+};
+```
+
+--- ./src/bufferManager.cpp ---
+```
+#include "global.h"
+
+BufferManager::BufferManager()
+{
+    logger.log("BufferManager::BufferManager");
+}
+
+/**
+ * @brief Function called to read a page from the buffer manager. If the page is
+ * not present in the pool, the page is read and then inserted into the pool.
+ *
+ * @param tableName 
+ * @param pageIndex 
+ * @return Page 
+ */
+Page BufferManager::getPage(string tableName, int pageIndex)
+{
+    logger.log("BufferManager::getPage");
+    string pageName = "../data/temp/"+tableName + "_Page" + to_string(pageIndex);
+    if (this->inPool(pageName))
+        return this->getFromPool(pageName);
+    else
+        return this->insertIntoPool(tableName, pageIndex);
+}
+
+/**
+ * @brief Checks to see if a page exists in the pool
+ *
+ * @param pageName 
+ * @return true 
+ * @return false 
+ */
+bool BufferManager::inPool(string pageName)
+{
+    logger.log("BufferManager::inPool");
+    for (auto page : this->pages)
+    {
+        if (pageName == page.pageName)
+            return true;
+    }
+    return false;
+}
+
+/**
+ * @brief If the page is present in the pool, then this function returns the
+ * page. Note that this function will fail if the page is not present in the
+ * pool.
+ *
+ * @param pageName 
+ * @return Page 
+ */
+Page BufferManager::getFromPool(string pageName)
+{
+    logger.log("BufferManager::getFromPool");
+    for (auto page : this->pages)
+        if (pageName == page.pageName)
+            return page;
+}
+
+/**
+ * @brief Inserts page indicated by tableName and pageIndex into pool. If the
+ * pool is full, the pool ejects the oldest inserted page from the pool and adds
+ * the current page at the end. It naturally follows a queue data structure. 
+ *
+ * @param tableName 
+ * @param pageIndex 
+ * @return Page 
+ */
+Page BufferManager::insertIntoPool(string tableName, int pageIndex)
+{
+    logger.log("BufferManager::insertIntoPool");
+    Page page(tableName, pageIndex);
+    if (this->pages.size() >= BLOCK_COUNT)
+        pages.pop_front();
+    pages.push_back(page);
+    return page;
+}
+
+/**
+ * @brief The buffer manager is also responsible for writing pages. This is
+ * called when new tables are created using assignment statements.
+ *
+ * @param tableName 
+ * @param pageIndex 
+ * @param rows 
+ * @param rowCount 
+ */
+void BufferManager::writePage(string tableName, int pageIndex, vector<vector<int>> rows, int rowCount)
+{
+    logger.log("BufferManager::writePage");
+    Page page(tableName, pageIndex, rows, rowCount);
+    page.writePage();
+}
+
+/**
+ * @brief Deletes file names fileName
+ *
+ * @param fileName 
+ */
+void BufferManager::deleteFile(string fileName)
+{
+    
+    if (remove(fileName.c_str()))
+        logger.log("BufferManager::deleteFile: Err");
+        else logger.log("BufferManager::deleteFile: Success");
+}
+
+/**
+ * @brief Overloaded function that calls deleteFile(fileName) by constructing
+ * the fileName from the tableName and pageIndex.
+ *
+ * @param tableName 
+ * @param pageIndex 
+ */
+void BufferManager::deleteFile(string tableName, int pageIndex)
+{
+    logger.log("BufferManager::deleteFile");
+    string fileName = "../data/temp/"+tableName + "_Page" + to_string(pageIndex);
+    this->deleteFile(fileName);
+}
+```
+
+--- ./src/table.cpp ---
+```
+#include "global.h"
+
+/**
+ * @brief Construct a new Table:: Table object
+ *
+ */
+Table::Table()
+{
+    logger.log("Table::Table");
+}
+
+/**
+ * @brief Construct a new Table:: Table object used in the case where the data
+ * file is available and LOAD command has been called. This command should be
+ * followed by calling the load function;
+ *
+ * @param tableName 
+ */
+Table::Table(string tableName)
+{
+    logger.log("Table::Table");
+    this->sourceFileName = "../data/" + tableName + ".csv";
+    this->tableName = tableName;
+}
+
+/**
+ * @brief Construct a new Table:: Table object used when an assignment command
+ * is encountered. To create the table object both the table name and the
+ * columns the table holds should be specified.
+ *
+ * @param tableName 
+ * @param columns 
+ */
+Table::Table(string tableName, vector<string> columns)
+{
+    logger.log("Table::Table");
+    this->sourceFileName = "../data/temp/" + tableName + ".csv";
+    this->tableName = tableName;
+    this->columns = columns;
+    this->columnCount = columns.size();
+    this->maxRowsPerBlock = (uint)((BLOCK_SIZE * 1000) / (sizeof(int) * columnCount));
+    this->writeRow<string>(columns);
+}
+
+/**
+ * @brief The load function is used when the LOAD command is encountered. It
+ * reads data from the source file, splits it into blocks and updates table
+ * statistics.
+ *
+ * @return true if the table has been successfully loaded 
+ * @return false if an error occurred 
+ */
+bool Table::load()
+{
+    logger.log("Table::load");
+    fstream fin(this->sourceFileName, ios::in);
+    string line;
+    if (getline(fin, line))
+    {
+        fin.close();
+        if (this->extractColumnNames(line))
+            if (this->blockify())
+                return true;
+    }
+    fin.close();
+    return false;
+}
+
+/**
+ * @brief Function extracts column names from the header line of the .csv data
+ * file. 
+ *
+ * @param line 
+ * @return true if column names successfully extracted (i.e. no column name
+ * repeats)
+ * @return false otherwise
+ */
+bool Table::extractColumnNames(string firstLine)
+{
+    logger.log("Table::extractColumnNames");
+    unordered_set<string> columnNames;
+    string word;
+    stringstream s(firstLine);
+    while (getline(s, word, ','))
+    {
+        word.erase(std::remove_if(word.begin(), word.end(), ::isspace), word.end());
+        if (columnNames.count(word))
+            return false;
+        columnNames.insert(word);
+        this->columns.emplace_back(word);
+    }
+    this->columnCount = this->columns.size();
+    this->maxRowsPerBlock = (uint)((BLOCK_SIZE * 1000) / (sizeof(int) * this->columnCount));
+    return true;
+}
+
+/**
+ * @brief This function splits all the rows and stores them in multiple files of
+ * one block size. 
+ *
+ * @return true if successfully blockified
+ * @return false otherwise
+ */
+bool Table::blockify()
+{
+    logger.log("Table::blockify");
+    ifstream fin(this->sourceFileName, ios::in);
+    string line, word;
+    vector<int> row(this->columnCount, 0);
+    vector<vector<int>> rowsInPage(this->maxRowsPerBlock, row);
+    int pageCounter = 0;
+    unordered_set<int> dummy;
+    dummy.clear();
+    this->distinctValuesInColumns.assign(this->columnCount, dummy);
+    this->distinctValuesPerColumnCount.assign(this->columnCount, 0);
+    getline(fin, line);
+    while (getline(fin, line))
+    {
+        stringstream s(line);
+        for (int columnCounter = 0; columnCounter < this->columnCount; columnCounter++)
+        {
+            if (!getline(s, word, ','))
+                return false;
+            row[columnCounter] = stoi(word);
+            rowsInPage[pageCounter][columnCounter] = row[columnCounter];
+        }
+        pageCounter++;
+        this->updateStatistics(row);
+        if (pageCounter == this->maxRowsPerBlock)
+        {
+            bufferManager.writePage(this->tableName, this->blockCount, rowsInPage, pageCounter);
+            this->blockCount++;
+            this->rowsPerBlockCount.emplace_back(pageCounter);
+            pageCounter = 0;
+        }
+    }
+    if (pageCounter)
+    {
+        bufferManager.writePage(this->tableName, this->blockCount, rowsInPage, pageCounter);
+        this->blockCount++;
+        this->rowsPerBlockCount.emplace_back(pageCounter);
+        pageCounter = 0;
+    }
+
+    if (this->rowCount == 0)
+        return false;
+    this->distinctValuesInColumns.clear();
+    return true;
+}
+
+/**
+ * @brief Given a row of values, this function will update the statistics it
+ * stores i.e. it updates the number of rows that are present in the column and
+ * the number of distinct values present in each column. These statistics are to
+ * be used during optimisation.
+ *
+ * @param row 
+ */
+void Table::updateStatistics(vector<int> row)
+{
+    this->rowCount++;
+    for (int columnCounter = 0; columnCounter < this->columnCount; columnCounter++)
+    {
+        if (!this->distinctValuesInColumns[columnCounter].count(row[columnCounter]))
+        {
+            this->distinctValuesInColumns[columnCounter].insert(row[columnCounter]);
+            this->distinctValuesPerColumnCount[columnCounter]++;
+        }
+    }
+}
+
+/**
+ * @brief Checks if the given column is present in this table.
+ *
+ * @param columnName 
+ * @return true 
+ * @return false 
+ */
+bool Table::isColumn(string columnName)
+{
+    logger.log("Table::isColumn");
+    for (auto col : this->columns)
+    {
+        if (col == columnName)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * @brief Renames the column indicated by fromColumnName to toColumnName. It is
+ * assumed that checks such as the existence of fromColumnName and the non prior
+ * existence of toColumnName are done.
+ *
+ * @param fromColumnName 
+ * @param toColumnName 
+ */
+void Table::renameColumn(string fromColumnName, string toColumnName)
+{
+    logger.log("Table::renameColumn");
+    for (int columnCounter = 0; columnCounter < this->columnCount; columnCounter++)
+    {
+        if (columns[columnCounter] == fromColumnName)
+        {
+            columns[columnCounter] = toColumnName;
+            break;
+        }
+    }
+    return;
+}
+
+/**
+ * @brief Function prints the first few rows of the table. If the table contains
+ * more rows than PRINT_COUNT, exactly PRINT_COUNT rows are printed, else all
+ * the rows are printed.
+ *
+ */
+void Table::print()
+{
+    logger.log("Table::print");
+    uint count = min((long long)PRINT_COUNT, this->rowCount);
+
+    //print headings
+    this->writeRow(this->columns, cout);
+
+    Cursor cursor(this->tableName, 0);
+    vector<int> row;
+    for (int rowCounter = 0; rowCounter < count; rowCounter++)
+    {
+        row = cursor.getNext();
+        this->writeRow(row, cout);
+    }
+    printRowCount(this->rowCount);
+}
+
+
+
+/**
+ * @brief This function returns one row of the table using the cursor object. It
+ * returns an empty row is all rows have been read.
+ *
+ * @param cursor 
+ * @return vector<int> 
+ */
+void Table::getNextPage(Cursor *cursor)
+{
+    logger.log("Table::getNext");
+
+        if (cursor->pageIndex < this->blockCount - 1)
+        {
+            cursor->nextPage(cursor->pageIndex+1);
+        }
+}
+
+
+
+/**
+ * @brief called when EXPORT command is invoked to move source file to "data"
+ * folder.
+ *
+ */
+void Table::makePermanent()
+{
+    logger.log("Table::makePermanent");
+    if(!this->isPermanent())
+        bufferManager.deleteFile(this->sourceFileName);
+    string newSourceFile = "../data/" + this->tableName + ".csv";
+    ofstream fout(newSourceFile, ios::out);
+
+    //print headings
+    this->writeRow(this->columns, fout);
+
+    Cursor cursor(this->tableName, 0);
+    vector<int> row;
+    for (int rowCounter = 0; rowCounter < this->rowCount; rowCounter++)
+    {
+        row = cursor.getNext();
+        this->writeRow(row, fout);
+    }
+    fout.close();
+}
+
+/**
+ * @brief Function to check if table is already exported
+ *
+ * @return true if exported
+ * @return false otherwise
+ */
+bool Table::isPermanent()
+{
+    logger.log("Table::isPermanent");
+    if (this->sourceFileName == "../data/" + this->tableName + ".csv")
+    return true;
+    return false;
+}
+
+/**
+ * @brief The unload function removes the table from the database by deleting
+ * all temporary files created as part of this table
+ *
+ */
+void Table::unload(){
+    logger.log("Table::~unload");
+    for (int pageCounter = 0; pageCounter < this->blockCount; pageCounter++)
+        bufferManager.deleteFile(this->tableName, pageCounter);
+    if (!isPermanent())
+        bufferManager.deleteFile(this->sourceFileName);
+}
+
+/**
+ * @brief Function that returns a cursor that reads rows from this table
+ * 
+ * @return Cursor 
+ */
+Cursor Table::getCursor()
+{
+    logger.log("Table::getCursor");
+    Cursor cursor(this->tableName, 0);
+    return cursor;
+}
+/**
+ * @brief Function that returns the index of column indicated by columnName
+ * 
+ * @param columnName 
+ * @return int 
+ */
+int Table::getColumnIndex(string columnName)
+{
+    logger.log("Table::getColumnIndex");
+    for (int columnCounter = 0; columnCounter < this->columnCount; columnCounter++)
+    {
+        if (this->columns[columnCounter] == columnName)
+            return columnCounter;
+    }
+}
+
+```
+
+--- ./src/page.cpp ---
+```
+#include "global.h"
+/**
+ * @brief Construct a new Page object. Never used as part of the code
+ *
+ */
+Page::Page()
+{
+    this->pageName = "";
+    this->tableName = "";
+    this->pageIndex = -1;
+    this->rowCount = 0;
+    this->columnCount = 0;
+    this->rows.clear();
+}
+
+/**
+ * @brief Construct a new Page:: Page object given the table name and page
+ * index. When tables are loaded they are broken up into blocks of BLOCK_SIZE
+ * and each block is stored in a different file named
+ * "<tablename>_Page<pageindex>". For example, If the Page being loaded is of
+ * table "R" and the pageIndex is 2 then the file name is "R_Page2". The page
+ * loads the rows (or tuples) into a vector of rows (where each row is a vector
+ * of integers).
+ *
+ * @param tableName 
+ * @param pageIndex 
+ */
+Page::Page(string tableName, int pageIndex)
+{
+    logger.log("Page::Page");
+    this->tableName = tableName;
+    this->pageIndex = pageIndex;
+    this->pageName = "../data/temp/" + this->tableName + "_Page" + to_string(pageIndex);
+    Table table = *tableCatalogue.getTable(tableName);
+    this->columnCount = table.columnCount;
+    uint maxRowCount = table.maxRowsPerBlock;
+    vector<int> row(columnCount, 0);
+    this->rows.assign(maxRowCount, row);
+
+    ifstream fin(pageName, ios::in);
+    this->rowCount = table.rowsPerBlockCount[pageIndex];
+    int number;
+    for (uint rowCounter = 0; rowCounter < this->rowCount; rowCounter++)
+    {
+        for (int columnCounter = 0; columnCounter < columnCount; columnCounter++)
+        {
+            fin >> number;
+            this->rows[rowCounter][columnCounter] = number;
+        }
+    }
+    fin.close();
+}
+
+/**
+ * @brief Get row from page indexed by rowIndex
+ * 
+ * @param rowIndex 
+ * @return vector<int> 
+ */
+vector<int> Page::getRow(int rowIndex)
+{
+    logger.log("Page::getRow");
+    vector<int> result;
+    result.clear();
+    if (rowIndex >= this->rowCount)
+        return result;
+    return this->rows[rowIndex];
+}
+
+Page::Page(string tableName, int pageIndex, vector<vector<int>> rows, int rowCount)
+{
+    logger.log("Page::Page");
+    this->tableName = tableName;
+    this->pageIndex = pageIndex;
+    this->rows = rows;
+    this->rowCount = rowCount;
+    this->columnCount = rows[0].size();
+    this->pageName = "../data/temp/"+this->tableName + "_Page" + to_string(pageIndex);
+}
+
+/**
+ * @brief writes current page contents to file.
+ * 
+ */
+void Page::writePage()
+{
+    logger.log("Page::writePage");
+    ofstream fout(this->pageName, ios::trunc);
+    for (int rowCounter = 0; rowCounter < this->rowCount; rowCounter++)
+    {
+        for (int columnCounter = 0; columnCounter < this->columnCount; columnCounter++)
+        {
+            if (columnCounter != 0)
+                fout << " ";
+            fout << this->rows[rowCounter][columnCounter];
+        }
+        fout << endl;
+    }
+    fout.close();
+}
+
+```
+
+--- ./src/semanticParser.cpp ---
+```
+#include"global.h"
+
+bool semanticParse(){
+    logger.log("semanticParse");
+    switch(parsedQuery.queryType){
+        case CLEAR: return semanticParseCLEAR();
+        case CROSS: return semanticParseCROSS();
+        case DISTINCT: return semanticParseDISTINCT();
+        case EXPORT: return semanticParseEXPORT();
+        case INDEX: return semanticParseINDEX();
+        case JOIN: return semanticParseJOIN();
+        case LIST: return semanticParseLIST();
+        case LOAD: return semanticParseLOAD();
+        case PRINT: return semanticParsePRINT();
+        case PROJECTION: return semanticParsePROJECTION();
+        case RENAME: return semanticParseRENAME();
+        case SELECTION: return semanticParseSELECTION();
+        case SORT: return semanticParseSORT();
+        case SOURCE: return semanticParseSOURCE();
+        default: cout<<"SEMANTIC ERROR"<<endl;
+    }
+
+    return false;
+}
+```
+
+--- ./src/Makefile ---
+```
+# *****************************************************
+# Variables to control Makefile operation
+
+CXX = g++
+CXXFLAGS = -g -I .
+
+SRC := $(wildcard *.cpp)
+OBJS = $(SRC:.cpp=.o)
+
+EXEC_DIR = ./executors
+EXEC_SRC := $(wildcard $(EXEC_DIR)/*.cpp)
+EXEC_OBJS = $(EXEC_SRC:.cpp=.o)
+
+# ****************************************************
+# Targets needed to bring the executable up to date
+
+all: server
+
+server: $(OBJS) $(EXEC_OBJS)
+	$(CXX) $(CXXFLAGS) -o $@ $(OBJS) $(EXEC_OBJS)
+
+clean:
+	rm -f *.o *~
+	rm -f $(EXEC_DIR)/*.o $(EXEC_DIR)/*~
+	rm -f server
+	rm -f log
+
+%.o: %.cpp global.h
+
+$(EXEC_DIR)/%.o: $(EXEC_DIR)/.cpp global.h
+
+```
+
+--- ./src/tableCatalogue.cpp ---
+```
+#include "global.h"
+
+void TableCatalogue::insertTable(Table* table)
+{
+    logger.log("TableCatalogue::~insertTable"); 
+    this->tables[table->tableName] = table;
+}
+void TableCatalogue::deleteTable(string tableName)
+{
+    logger.log("TableCatalogue::deleteTable"); 
+    this->tables[tableName]->unload();
+    delete this->tables[tableName];
+    this->tables.erase(tableName);
+}
+Table* TableCatalogue::getTable(string tableName)
+{
+    logger.log("TableCatalogue::getTable"); 
+    Table *table = this->tables[tableName];
+    return table;
+}
+bool TableCatalogue::isTable(string tableName)
+{
+    logger.log("TableCatalogue::isTable"); 
+    if (this->tables.count(tableName))
+        return true;
+    return false;
+}
+
+bool TableCatalogue::isColumnFromTable(string columnName, string tableName)
+{
+    logger.log("TableCatalogue::isColumnFromTable"); 
+    if (this->isTable(tableName))
+    {
+        Table* table = this->getTable(tableName);
+        if (table->isColumn(columnName))
+            return true;
+    }
+    return false;
+}
+
+void TableCatalogue::print()
+{
+    logger.log("TableCatalogue::print"); 
+    cout << "\nRELATIONS" << endl;
+
+    int rowCount = 0;
+    for (auto rel : this->tables)
+    {
+        cout << rel.first << endl;
+        rowCount++;
+    }
+    printRowCount(rowCount);
+}
+
+TableCatalogue::~TableCatalogue(){
+    logger.log("TableCatalogue::~TableCatalogue"); 
+    for(auto table: this->tables){
+        table.second->unload();
+        delete table.second;
+    }
+}
+
+```
+
+--- ./src/executors/projection.cpp ---
+```
+#include "global.h"
+/**
+ * @brief 
+ * SYNTAX: R <- PROJECT column_name1, ... FROM relation_name
+ */
+bool syntacticParsePROJECTION()
+{
+    logger.log("syntacticParsePROJECTION");
+    if (tokenizedQuery.size() < 5 || *(tokenizedQuery.end() - 2) != "FROM")
+    {
+        cout << "SYNTAX ERROR" << endl;
+        return false;
+    }
+    parsedQuery.queryType = PROJECTION;
+    parsedQuery.projectionResultRelationName = tokenizedQuery[0];
+    parsedQuery.projectionRelationName = tokenizedQuery[tokenizedQuery.size() - 1];
+    for (int i = 3; i < tokenizedQuery.size() - 2; i++)
+        parsedQuery.projectionColumnList.emplace_back(tokenizedQuery[i]);
+    return true;
+}
+
+bool semanticParsePROJECTION()
+{
+    logger.log("semanticParsePROJECTION");
+
+    if (tableCatalogue.isTable(parsedQuery.projectionResultRelationName))
+    {
+        cout << "SEMANTIC ERROR: Resultant relation already exists" << endl;
+        return false;
+    }
+
+    if (!tableCatalogue.isTable(parsedQuery.projectionRelationName))
+    {
+        cout << "SEMANTIC ERROR: Relation doesn't exist" << endl;
+        return false;
+    }
+
+    Table table = *tableCatalogue.getTable(parsedQuery.projectionRelationName);
+    for (auto col : parsedQuery.projectionColumnList)
+    {
+        if (!table.isColumn(col))
+        {
+            cout << "SEMANTIC ERROR: Column doesn't exist in relation";
+            return false;
+        }
+    }
+    return true;
+}
+
+void executePROJECTION()
+{
+    logger.log("executePROJECTION");
+    Table* resultantTable = new Table(parsedQuery.projectionResultRelationName, parsedQuery.projectionColumnList);
+    Table table = *tableCatalogue.getTable(parsedQuery.projectionRelationName);
+    Cursor cursor = table.getCursor();
+    vector<int> columnIndices;
+    for (int columnCounter = 0; columnCounter < parsedQuery.projectionColumnList.size(); columnCounter++)
+    {
+        columnIndices.emplace_back(table.getColumnIndex(parsedQuery.projectionColumnList[columnCounter]));
+    }
+    vector<int> row = cursor.getNext();
+    vector<int> resultantRow(columnIndices.size(), 0);
+
+    while (!row.empty())
+    {
+
+        for (int columnCounter = 0; columnCounter < columnIndices.size(); columnCounter++)
+        {
+            resultantRow[columnCounter] = row[columnIndices[columnCounter]];
+        }
+        resultantTable->writeRow<int>(resultantRow);
+        row = cursor.getNext();
+    }
+    resultantTable->blockify();
+    tableCatalogue.insertTable(resultantTable);
+    return;
+}
+```
+
+--- ./src/executors/cross.cpp ---
+```
+#include "global.h"
+
+/**
+ * @brief 
+ * SYNTAX: R <- CROSS relation_name relation_name
+ */
+bool syntacticParseCROSS()
+{
+    logger.log("syntacticParseCROSS");
+    if (tokenizedQuery.size() != 5)
+    {
+        cout << "SYNTAX ERROR" << endl;
+        return false;
+    }
+    parsedQuery.queryType = CROSS;
+    parsedQuery.crossResultRelationName = tokenizedQuery[0];
+    parsedQuery.crossFirstRelationName = tokenizedQuery[3];
+    parsedQuery.crossSecondRelationName = tokenizedQuery[4];
+    return true;
+}
+
+bool semanticParseCROSS()
+{
+    logger.log("semanticParseCROSS");
+    //Both tables must exist and resultant table shouldn't
+    if (tableCatalogue.isTable(parsedQuery.crossResultRelationName))
+    {
+        cout << "SEMANTIC ERROR: Resultant relation already exists" << endl;
+        return false;
+    }
+
+    if (!tableCatalogue.isTable(parsedQuery.crossFirstRelationName) || !tableCatalogue.isTable(parsedQuery.crossSecondRelationName))
+    {
+        cout << "SEMANTIC ERROR: Cross relations don't exist" << endl;
+        return false;
+    }
+    return true;
+}
+
+void executeCROSS()
+{
+    logger.log("executeCROSS");
+
+    Table table1 = *(tableCatalogue.getTable(parsedQuery.crossFirstRelationName));
+    Table table2 = *(tableCatalogue.getTable(parsedQuery.crossSecondRelationName));
+
+    vector<string> columns;
+
+    //If both tables are the same i.e. CROSS a a, then names are indexed as a1 and a2
+    if(table1.tableName == table2.tableName){
+        parsedQuery.crossFirstRelationName += "1";
+        parsedQuery.crossSecondRelationName += "2";
+    }
+
+    //Creating list of column names
+    for (int columnCounter = 0; columnCounter < table1.columnCount; columnCounter++)
+    {
+        string columnName = table1.columns[columnCounter];
+        if (table2.isColumn(columnName))
+        {
+            columnName = parsedQuery.crossFirstRelationName + "_" + columnName;
+        }
+        columns.emplace_back(columnName);
+    }
+
+    for (int columnCounter = 0; columnCounter < table2.columnCount; columnCounter++)
+    {
+        string columnName = table2.columns[columnCounter];
+        if (table1.isColumn(columnName))
+        {
+            columnName = parsedQuery.crossSecondRelationName + "_" + columnName;
+        }
+        columns.emplace_back(columnName);
+    }
+
+    Table *resultantTable = new Table(parsedQuery.crossResultRelationName, columns);\
+
+    Cursor cursor1 = table1.getCursor();
+    Cursor cursor2 = table2.getCursor();
+
+    vector<int> row1 = cursor1.getNext();
+    vector<int> row2;
+    vector<int> resultantRow;
+    resultantRow.reserve(resultantTable->columnCount);
+
+    while (!row1.empty())
+    {
+
+        cursor2 = table2.getCursor();
+        row2 = cursor2.getNext();
+        while (!row2.empty())
+        {
+            resultantRow = row1;
+            resultantRow.insert(resultantRow.end(), row2.begin(), row2.end());
+            resultantTable->writeRow<int>(resultantRow);
+            row2 = cursor2.getNext();
+        }
+        row1 = cursor1.getNext();
+    }
+    resultantTable->blockify();
+    tableCatalogue.insertTable(resultantTable);
+    return;
+}
+```
+
+--- ./src/executors/sort.cpp ---
+```
+#include"global.h"
+/**
+ * @brief File contains method to process SORT commands.
+ * 
+ * syntax:
+ * R <- SORT relation_name BY column_name IN sorting_order
+ * 
+ * sorting_order = ASC | DESC 
+ */
+bool syntacticParseSORT(){
+    logger.log("syntacticParseSORT");
+    if(tokenizedQuery.size()!= 8 || tokenizedQuery[4] != "BY" || tokenizedQuery[6] != "IN"){
+        cout<<"SYNTAX ERROR"<<endl;
+        return false;
+    }
+    parsedQuery.queryType = SORT;
+    parsedQuery.sortResultRelationName = tokenizedQuery[0];
+    parsedQuery.sortRelationName = tokenizedQuery[3];
+    parsedQuery.sortColumnName = tokenizedQuery[5];
+    string sortingStrategy = tokenizedQuery[7];
+    if(sortingStrategy == "ASC")
+        parsedQuery.sortingStrategy = ASC;
+    else if(sortingStrategy == "DESC")
+        parsedQuery.sortingStrategy = DESC;
+    else{
+        cout<<"SYNTAX ERROR"<<endl;
+        return false;
+    }
+    return true;
+}
+
+bool semanticParseSORT(){
+    logger.log("semanticParseSORT");
+
+    if(tableCatalogue.isTable(parsedQuery.sortResultRelationName)){
+        cout<<"SEMANTIC ERROR: Resultant relation already exists"<<endl;
+        return false;
+    }
+
+    if(!tableCatalogue.isTable(parsedQuery.sortRelationName)){
+        cout<<"SEMANTIC ERROR: Relation doesn't exist"<<endl;
+        return false;
+    }
+
+    if(!tableCatalogue.isColumnFromTable(parsedQuery.sortColumnName, parsedQuery.sortRelationName)){
+        cout<<"SEMANTIC ERROR: Column doesn't exist in relation"<<endl;
+        return false;
+    }
+
+    return true;
+}
+
+void executeSORT(){
+    logger.log("executeSORT");
+    return;
+}
+```
+
+--- ./src/executors/load.cpp ---
+```
+#include "global.h"
+/**
+ * @brief 
+ * SYNTAX: LOAD relation_name
+ */
+bool syntacticParseLOAD()
+{
+    logger.log("syntacticParseLOAD");
+    if (tokenizedQuery.size() != 2)
+    {
+        cout << "SYNTAX ERROR" << endl;
+        return false;
+    }
+    parsedQuery.queryType = LOAD;
+    parsedQuery.loadRelationName = tokenizedQuery[1];
+    return true;
+}
+
+bool semanticParseLOAD()
+{
+    logger.log("semanticParseLOAD");
+    if (tableCatalogue.isTable(parsedQuery.loadRelationName))
+    {
+        cout << "SEMANTIC ERROR: Relation already exists" << endl;
+        return false;
+    }
+
+    if (!isFileExists(parsedQuery.loadRelationName))
+    {
+        cout << "SEMANTIC ERROR: Data file doesn't exist" << endl;
+        return false;
+    }
+    return true;
+}
+
+void executeLOAD()
+{
+    logger.log("executeLOAD");
+
+    Table *table = new Table(parsedQuery.loadRelationName);
+    if (table->load())
+    {
+        tableCatalogue.insertTable(table);
+        cout << "Loaded Table. Column Count: " << table->columnCount << " Row Count: " << table->rowCount << endl;
+    }
+    return;
+}
+```
+
+--- ./src/executors/distinct.cpp ---
+```
+#include "global.h"
+
+/**
+ * @brief 
+ * SYNTAX: R <- DISTINCT relation_name
+ */
+bool syntacticParseDISTINCT()
+{
+    logger.log("syntacticParseDISTINCT");
+    if (tokenizedQuery.size() != 4)
+    {
+        cout << "SYNTAX ERROR" << endl;
+        return false;
+    }
+    parsedQuery.queryType = DISTINCT;
+    parsedQuery.distinctResultRelationName = tokenizedQuery[0];
+    parsedQuery.distinctRelationName = tokenizedQuery[3];
+    return true;
+}
+
+bool semanticParseDISTINCT()
+{
+    logger.log("semanticParseDISTINCT");
+    //The resultant table shouldn't exist and the table argument should
+    if (tableCatalogue.isTable(parsedQuery.distinctResultRelationName))
+    {
+        cout << "SEMANTIC ERROR: Resultant relation already exists" << endl;
+        return false;
+    }
+
+    if (!tableCatalogue.isTable(parsedQuery.distinctRelationName))
+    {
+        cout << "SEMANTIC ERROR: Relation doesn't exist" << endl;
+        return false;
+    }
+    return true;
+}
+
+void executeDISTINCT()
+{
+    logger.log("executeDISTINCT");
+    return;
+}
+```
+
+--- ./src/executors/list.cpp ---
+```
+#include "global.h"
+/**
+ * @brief 
+ * SYNTAX: LIST TABLES
+ */
+bool syntacticParseLIST()
+{
+    logger.log("syntacticParseLIST");
+    if (tokenizedQuery.size() != 2 || tokenizedQuery[1] != "TABLES")
+    {
+        cout << "SYNTAX ERROR" << endl;
+        return false;
+    }
+    parsedQuery.queryType = LIST;
+    return true;
+}
+
+bool semanticParseLIST()
+{
+    logger.log("semanticParseLIST");
+    return true;
+}
+
+void executeLIST()
+{
+    logger.log("executeLIST");
+    tableCatalogue.print();
+}
+```
+
+--- ./src/executors/index.cpp ---
+```
+#include "global.h"
+/**
+ * @brief 
+ * SYNTAX: INDEX ON column_name FROM relation_name USING indexing_strategy
+ * indexing_strategy: ASC | DESC | NOTHING
+ */
+bool syntacticParseINDEX()
+{
+    logger.log("syntacticParseINDEX");
+    if (tokenizedQuery.size() != 7 || tokenizedQuery[1] != "ON" || tokenizedQuery[3] != "FROM" || tokenizedQuery[5] != "USING")
+    {
+        cout << "SYNTAX ERROR" << endl;
+        return false;
+    }
+    parsedQuery.queryType = INDEX;
+    parsedQuery.indexColumnName = tokenizedQuery[2];
+    parsedQuery.indexRelationName = tokenizedQuery[4];
+    string indexingStrategy = tokenizedQuery[6];
+    if (indexingStrategy == "BTREE")
+        parsedQuery.indexingStrategy = BTREE;
+    else if (indexingStrategy == "HASH")
+        parsedQuery.indexingStrategy = HASH;
+    else if (indexingStrategy == "NOTHING")
+        parsedQuery.indexingStrategy = NOTHING;
+    else
+    {
+        cout << "SYNTAX ERROR" << endl;
+        return false;
+    }
+    return true;
+}
+
+bool semanticParseINDEX()
+{
+    logger.log("semanticParseINDEX");
+    if (!tableCatalogue.isTable(parsedQuery.indexRelationName))
+    {
+        cout << "SEMANTIC ERROR: Relation doesn't exist" << endl;
+        return false;
+    }
+    if (!tableCatalogue.isColumnFromTable(parsedQuery.indexColumnName, parsedQuery.indexRelationName))
+    {
+        cout << "SEMANTIC ERROR: Column doesn't exist in relation" << endl;
+        return false;
+    }
+    Table* table = tableCatalogue.getTable(parsedQuery.indexRelationName);
+    if(table->indexed){
+        cout << "SEMANTIC ERROR: Table already indexed" << endl;
+        return false;
+    }
+    return true;
+}
+
+void executeINDEX()
+{
+    logger.log("executeINDEX");
+    return;
+}
+```
+
+--- ./src/executors/export.cpp ---
+```
+#include "global.h"
+
+/**
+ * @brief 
+ * SYNTAX: EXPORT <relation_name> 
+ */
+
+bool syntacticParseEXPORT()
+{
+    logger.log("syntacticParseEXPORT");
+    if (tokenizedQuery.size() != 2)
+    {
+        cout << "SYNTAX ERROR" << endl;
+        return false;
+    }
+    parsedQuery.queryType = EXPORT;
+    parsedQuery.exportRelationName = tokenizedQuery[1];
+    return true;
+}
+
+bool semanticParseEXPORT()
+{
+    logger.log("semanticParseEXPORT");
+    //Table should exist
+    if (tableCatalogue.isTable(parsedQuery.exportRelationName))
+        return true;
+    cout << "SEMANTIC ERROR: No such relation exists" << endl;
+    return false;
+}
+
+void executeEXPORT()
+{
+    logger.log("executeEXPORT");
+    Table* table = tableCatalogue.getTable(parsedQuery.exportRelationName);
+    table->makePermanent();
+    return;
+}
+```
+
+--- ./src/executors/source.cpp ---
+```
+#include "global.h"
+/**
+ * @brief 
+ * SYNTAX: SOURCE filename
+ */
+bool syntacticParseSOURCE()
+{
+    logger.log("syntacticParseSOURCE");
+    if (tokenizedQuery.size() != 2)
+    {
+        cout << "SYNTAX ERROR" << endl;
+        return false;
+    }
+    parsedQuery.queryType = SOURCE;
+    parsedQuery.sourceFileName = tokenizedQuery[1];
+    return true;
+}
+
+bool semanticParseSOURCE()
+{
+    logger.log("semanticParseSOURCE");
+    if (!isQueryFile(parsedQuery.sourceFileName))
+    {
+        cout << "SEMANTIC ERROR: File doesn't exist" << endl;
+        return false;
+    }
+    return true;
+}
+
+void executeSOURCE()
+{
+    logger.log("executeSOURCE");
+    return;
+}
+
+```
+
+--- ./src/executors/print.cpp ---
+```
+#include "global.h"
+/**
+ * @brief 
+ * SYNTAX: PRINT relation_name
+ */
+bool syntacticParsePRINT()
+{
+    logger.log("syntacticParsePRINT");
+    if (tokenizedQuery.size() != 2)
+    {
+        cout << "SYNTAX ERROR" << endl;
+        return false;
+    }
+    parsedQuery.queryType = PRINT;
+    parsedQuery.printRelationName = tokenizedQuery[1];
+    return true;
+}
+
+bool semanticParsePRINT()
+{
+    logger.log("semanticParsePRINT");
+    if (!tableCatalogue.isTable(parsedQuery.printRelationName))
+    {
+        cout << "SEMANTIC ERROR: Relation doesn't exist" << endl;
+        return false;
+    }
+    return true;
+}
+
+void executePRINT()
+{
+    logger.log("executePRINT");
+    Table* table = tableCatalogue.getTable(parsedQuery.printRelationName);
+    table->print();
+    return;
+}
+
+```
+
+--- ./src/executors/join.cpp ---
+```
+#include "global.h"
+/**
+ * @brief 
+ * SYNTAX: R <- JOIN relation_name1, relation_name2 ON column_name1 bin_op column_name2
+ */
+bool syntacticParseJOIN()
+{
+    logger.log("syntacticParseJOIN");
+    if (tokenizedQuery.size() != 9 || tokenizedQuery[5] != "ON")
+    {
+        cout << "SYNTAC ERROR" << endl;
+        return false;
+    }
+    parsedQuery.queryType = JOIN;
+    parsedQuery.joinResultRelationName = tokenizedQuery[0];
+    parsedQuery.joinFirstRelationName = tokenizedQuery[3];
+    parsedQuery.joinSecondRelationName = tokenizedQuery[4];
+    parsedQuery.joinFirstColumnName = tokenizedQuery[6];
+    parsedQuery.joinSecondColumnName = tokenizedQuery[8];
+
+    string binaryOperator = tokenizedQuery[7];
+    if (binaryOperator == "<")
+        parsedQuery.joinBinaryOperator = LESS_THAN;
+    else if (binaryOperator == ">")
+        parsedQuery.joinBinaryOperator = GREATER_THAN;
+    else if (binaryOperator == ">=" || binaryOperator == "=>")
+        parsedQuery.joinBinaryOperator = GEQ;
+    else if (binaryOperator == "<=" || binaryOperator == "=<")
+        parsedQuery.joinBinaryOperator = LEQ;
+    else if (binaryOperator == "==")
+        parsedQuery.joinBinaryOperator = EQUAL;
+    else if (binaryOperator == "!=")
+        parsedQuery.joinBinaryOperator = NOT_EQUAL;
+    else
+    {
+        cout << "SYNTAX ERROR" << endl;
+        return false;
+    }
+    return true;
+}
+
+bool semanticParseJOIN()
+{
+    logger.log("semanticParseJOIN");
+
+    if (tableCatalogue.isTable(parsedQuery.joinResultRelationName))
+    {
+        cout << "SEMANTIC ERROR: Resultant relation already exists" << endl;
+        return false;
+    }
+
+    if (!tableCatalogue.isTable(parsedQuery.joinFirstRelationName) || !tableCatalogue.isTable(parsedQuery.joinSecondRelationName))
+    {
+        cout << "SEMANTIC ERROR: Relation doesn't exist" << endl;
+        return false;
+    }
+
+    if (!tableCatalogue.isColumnFromTable(parsedQuery.joinFirstColumnName, parsedQuery.joinFirstRelationName) || !tableCatalogue.isColumnFromTable(parsedQuery.joinSecondColumnName, parsedQuery.joinSecondRelationName))
+    {
+        cout << "SEMANTIC ERROR: Column doesn't exist in relation" << endl;
+        return false;
+    }
+    return true;
+}
+
+void executeJOIN()
+{
+    logger.log("executeJOIN");
+    return;
+}
+```
+
+--- ./src/executors/selection.cpp ---
+```
+#include "global.h"
+/**
+ * @brief 
+ * SYNTAX: R <- SELECT column_name bin_op [column_name | int_literal] FROM relation_name
+ */
+bool syntacticParseSELECTION()
+{
+    logger.log("syntacticParseSELECTION");
+    if (tokenizedQuery.size() != 8 || tokenizedQuery[6] != "FROM")
+    {
+        cout << "SYNTAC ERROR" << endl;
+        return false;
+    }
+    parsedQuery.queryType = SELECTION;
+    parsedQuery.selectionResultRelationName = tokenizedQuery[0];
+    parsedQuery.selectionFirstColumnName = tokenizedQuery[3];
+    parsedQuery.selectionRelationName = tokenizedQuery[7];
+
+    string binaryOperator = tokenizedQuery[4];
+    if (binaryOperator == "<")
+        parsedQuery.selectionBinaryOperator = LESS_THAN;
+    else if (binaryOperator == ">")
+        parsedQuery.selectionBinaryOperator = GREATER_THAN;
+    else if (binaryOperator == ">=" || binaryOperator == "=>")
+        parsedQuery.selectionBinaryOperator = GEQ;
+    else if (binaryOperator == "<=" || binaryOperator == "=<")
+        parsedQuery.selectionBinaryOperator = LEQ;
+    else if (binaryOperator == "==")
+        parsedQuery.selectionBinaryOperator = EQUAL;
+    else if (binaryOperator == "!=")
+        parsedQuery.selectionBinaryOperator = NOT_EQUAL;
+    else
+    {
+        cout << "SYNTAC ERROR" << endl;
+        return false;
+    }
+    regex numeric("[-]?[0-9]+");
+    string secondArgument = tokenizedQuery[5];
+    if (regex_match(secondArgument, numeric))
+    {
+        parsedQuery.selectType = INT_LITERAL;
+        parsedQuery.selectionIntLiteral = stoi(secondArgument);
+    }
+    else
+    {
+        parsedQuery.selectType = COLUMN;
+        parsedQuery.selectionSecondColumnName = secondArgument;
+    }
+    return true;
+}
+
+bool semanticParseSELECTION()
+{
+    logger.log("semanticParseSELECTION");
+
+    if (tableCatalogue.isTable(parsedQuery.selectionResultRelationName))
+    {
+        cout << "SEMANTIC ERROR: Resultant relation already exists" << endl;
+        return false;
+    }
+
+    if (!tableCatalogue.isTable(parsedQuery.selectionRelationName))
+    {
+        cout << "SEMANTIC ERROR: Relation doesn't exist" << endl;
+        return false;
+    }
+
+    if (!tableCatalogue.isColumnFromTable(parsedQuery.selectionFirstColumnName, parsedQuery.selectionRelationName))
+    {
+        cout << "SEMANTIC ERROR: Column doesn't exist in relation" << endl;
+        return false;
+    }
+
+    if (parsedQuery.selectType == COLUMN)
+    {
+        if (!tableCatalogue.isColumnFromTable(parsedQuery.selectionSecondColumnName, parsedQuery.selectionRelationName))
+        {
+            cout << "SEMANTIC ERROR: Column doesn't exist in relation" << endl;
+            return false;
+        }
+    }
+    return true;
+}
+
+bool evaluateBinOp(int value1, int value2, BinaryOperator binaryOperator)
+{
+    switch (binaryOperator)
+    {
+    case LESS_THAN:
+        return (value1 < value2);
+    case GREATER_THAN:
+        return (value1 > value2);
+    case LEQ:
+        return (value1 <= value2);
+    case GEQ:
+        return (value1 >= value2);
+    case EQUAL:
+        return (value1 == value2);
+    case NOT_EQUAL:
+        return (value1 != value2);
+    default:
+        return false;
+    }
+}
+
+void executeSELECTION()
+{
+    logger.log("executeSELECTION");
+
+    Table table = *tableCatalogue.getTable(parsedQuery.selectionRelationName);
+    Table* resultantTable = new Table(parsedQuery.selectionResultRelationName, table.columns);
+    Cursor cursor = table.getCursor();
+    vector<int> row = cursor.getNext();
+    int firstColumnIndex = table.getColumnIndex(parsedQuery.selectionFirstColumnName);
+    int secondColumnIndex;
+    if (parsedQuery.selectType == COLUMN)
+        secondColumnIndex = table.getColumnIndex(parsedQuery.selectionSecondColumnName);
+    while (!row.empty())
+    {
+
+        int value1 = row[firstColumnIndex];
+        int value2;
+        if (parsedQuery.selectType == INT_LITERAL)
+            value2 = parsedQuery.selectionIntLiteral;
+        else
+            value2 = row[secondColumnIndex];
+        if (evaluateBinOp(value1, value2, parsedQuery.selectionBinaryOperator))
+            resultantTable->writeRow<int>(row);
+        row = cursor.getNext();
+    }
+    if(resultantTable->blockify())
+        tableCatalogue.insertTable(resultantTable);
+    else{
+        cout<<"Empty Table"<<endl;
+        resultantTable->unload();
+        delete resultantTable;
+    }
+    return;
+}
+```
+
+--- ./src/executors/rename.cpp ---
+```
+#include "global.h"
+/**
+ * @brief 
+ * SYNTAX: RENAME column_name TO column_name FROM relation_name
+ */
+bool syntacticParseRENAME()
+{
+    logger.log("syntacticParseRENAME");
+    if (tokenizedQuery.size() != 6 || tokenizedQuery[2] != "TO" || tokenizedQuery[4] != "FROM")
+    {
+        cout << "SYNTAX ERROR" << endl;
+        return false;
+    }
+    parsedQuery.queryType = RENAME;
+    parsedQuery.renameFromColumnName = tokenizedQuery[1];
+    parsedQuery.renameToColumnName = tokenizedQuery[3];
+    parsedQuery.renameRelationName = tokenizedQuery[5];
+    return true;
+}
+
+bool semanticParseRENAME()
+{
+    logger.log("semanticParseRENAME");
+
+    if (!tableCatalogue.isTable(parsedQuery.renameRelationName))
+    {
+        cout << "SEMANTIC ERROR: Relation doesn't exist" << endl;
+        return false;
+    }
+
+    if (!tableCatalogue.isColumnFromTable(parsedQuery.renameFromColumnName, parsedQuery.renameRelationName))
+    {
+        cout << "SEMANTIC ERROR: Column doesn't exist in relation" << endl;
+        return false;
+    }
+
+    if (tableCatalogue.isColumnFromTable(parsedQuery.renameToColumnName, parsedQuery.renameRelationName))
+    {
+        cout << "SEMANTIC ERROR: Column with name already exists" << endl;
+        return false;
+    }
+    return true;
+}
+
+void executeRENAME()
+{
+    logger.log("executeRENAME");
+    Table* table = tableCatalogue.getTable(parsedQuery.renameRelationName);
+    table->renameColumn(parsedQuery.renameFromColumnName, parsedQuery.renameToColumnName);
+    return;
+}
+```
+
+--- ./src/.vscode/settings.json ---
+```
+{
+    "files.associations": {
+        "iostream": "cpp",
+        "iosfwd": "cpp"
+    }
+}
+```
+
+--- ./src/.vscode/launch.json ---
+```
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "(gdb) Launch",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/server",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        }
+    ]
+}
+```

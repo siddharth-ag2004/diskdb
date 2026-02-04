@@ -18,7 +18,14 @@ enum QueryType
     SELECTION,
     SORT,
     SOURCE,
-    UNDETERMINED
+    UNDETERMINED,
+    LOAD_GRAPH,
+};
+
+enum GraphType
+{
+    DIRECTED,
+    UNDIRECTED
 };
 
 enum BinaryOperator
@@ -101,6 +108,10 @@ public:
 
     string sourceFileName = "";
 
+    // For GRAPH
+    string loadGraphRelationName = "";
+    GraphType graphType;
+
     ParsedQuery();
     void clear();
 };
@@ -120,6 +131,7 @@ bool syntacticParseRENAME();
 bool syntacticParseSELECTION();
 bool syntacticParseSORT();
 bool syntacticParseSOURCE();
+bool syntacticParseLOAD_GRAPH();
 
 bool isFileExists(string tableName);
 bool isQueryFile(string fileName);

@@ -3,29 +3,61 @@
  * @brief 
  * SYNTAX: LOAD relation_name
  */
+
+bool syntacticParseLOADTable()
+{
+    logger.log("syntacticParseLOADTable");
+
+    if (tokenizedQuery.size() != 2)
+    {
+        cout << "SYNTAX ERROR: Invalid number of tokens for table load" << endl;
+        return false;
+    }
+
+    parsedQuery.queryType = LOAD;
+    parsedQuery.loadRelationName = tokenizedQuery[1];
+    return true;
+}
+
+bool syntacticParseLOADGraph()
+{
+    logger.log("syntacticParseLOADGraph");
+
+    if (tokenizedQuery.size() != 4)
+    {
+        cout << "SYNTAX ERROR: Invalid number of tokens for graph load" << endl;
+        return false;
+    }
+
+    if (tokenizedQuery[3] != "U" && tokenizedQuery[3] != "D")
+    {
+        cout << "SYNTAX ERROR: Invalid graph type (must be 'U' or 'D')" << endl;
+        return false;
+    }
+
+    parsedQuery.queryType = LOAD_GRAPH;
+    parsedQuery.loadGraphRelationName = tokenizedQuery[2];
+    parsedQuery.graphType = (tokenizedQuery[3] == "U") ? UNDIRECTED : DIRECTED;
+    return true;
+}
+
 bool syntacticParseLOAD()
 {
     logger.log("syntacticParseLOAD");
-    if (tokenizedQuery.size() != 2 && tokenizedQuery.size() != 4)
+
+    if (tokenizedQuery.size() == 2)
     {
-        cout << "SYNTAX ERROR" << endl;
+        return syntacticParseLOADTable();
+    }
+    else if (tokenizedQuery.size() == 4)
+    {
+        return syntacticParseLOADGraph();
+    }
+    else
+    {
+        cout << "SYNTAX ERROR: Invalid LOAD syntax" << endl;
         return false;
     }
-    
-    if(tokenizedQuery.size() == 2) { // For Table
-        parsedQuery.queryType = LOAD;
-        parsedQuery.loadRelationName = tokenizedQuery[1];
-    }
-    else if(tokenizedQuery.size() == 4) { // For Graph
-        if(tokenizedQuery[3] != "U" && tokenizedQuery[3] != "D") {
-            cout << "SYNTAX ERROR: Invalid graph type (must be 'U' or 'D')" << endl;
-            return false;
-        }
-        parsedQuery.queryType = LOAD_GRAPH;
-        parsedQuery.loadGraphRelationName = tokenizedQuery[2];
-        parsedQuery.graphType = (tokenizedQuery[3] == "U") ?  UNDIRECTED : DIRECTED;
-    }
-    return true;
 }
 
 bool semanticParseLOAD()

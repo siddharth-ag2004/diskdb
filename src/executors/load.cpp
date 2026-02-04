@@ -83,7 +83,7 @@ bool semanticParseLOADGraph()
 {
     logger.log("semanticParseLOADGraph");
 
-    if (graphCatalogue.isGraph(parsedQuery.loadGraphRelationName))
+    if (graphCatalogue.isGraph(parsedQuery.loadGraphRelationName, parsedQuery.graphType))
     {
         cout << "SEMANTIC ERROR: Graph already exists" << endl;
         return false;
@@ -98,7 +98,7 @@ bool semanticParseLOADGraph()
     return true;
 }
 
-void executeLOAD()
+void executeLOADTable()
 {
     logger.log("executeLOAD");
 
@@ -107,6 +107,19 @@ void executeLOAD()
     {
         tableCatalogue.insertTable(table);
         cout << "Loaded Table. Column Count: " << table->columnCount << " Row Count: " << table->rowCount << endl;
+    }
+    return;
+}
+
+void executeLOADGraph()
+{
+    logger.log("executeLOADGraph");
+
+    Graph *graph = new Graph(parsedQuery.loadGraphRelationName, parsedQuery.graphType);
+    if (graph->load())
+    {
+        graphCatalogue.insertGraph(graph);
+        cout << "Loaded Graph. Node Count: " << graph->nodeCount << " Edge Count: " << graph->edgeCount << endl;
     }
     return;
 }

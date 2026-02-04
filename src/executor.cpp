@@ -10,7 +10,8 @@ void executeCommand(){
         case INDEX: executeINDEX(); break;
         case JOIN: executeJOIN(); break;
         case LIST: executeLIST(); break;
-        case LOAD: executeLOAD(); break;
+        case LOAD: executeLOADTable(); break;
+        case LOAD_GRAPH: executeLOADGraph(); break;
         case PRINT: executePRINT(); break;
         case PROJECTION: executePROJECTION(); break;
         case RENAME: executeRENAME(); break;

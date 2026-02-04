@@ -11,11 +11,12 @@ bool syntacticParseLOAD()
         cout << "SYNTAX ERROR" << endl;
         return false;
     }
-    if(tokenizedQuery.size() == 2) {
+    
+    if(tokenizedQuery.size() == 2) { // For Table
         parsedQuery.queryType = LOAD;
         parsedQuery.loadRelationName = tokenizedQuery[1];
     }
-    else if(tokenizedQuery.size() == 4) {
+    else if(tokenizedQuery.size() == 4) { // For Graph
         if(tokenizedQuery[3] != "U" && tokenizedQuery[3] != "D") {
             cout << "SYNTAX ERROR: Invalid graph type (must be 'U' or 'D')" << endl;
             return false;

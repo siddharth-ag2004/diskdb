@@ -114,6 +114,8 @@ void ParsedQuery::clear()
     this->sortRelationName = "";
 
     this->sourceFileName = "";
+
+    this->loadGraphRelationName = "";
 }
 
 /**

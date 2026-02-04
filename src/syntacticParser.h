@@ -1,4 +1,7 @@
+#pragma once
+
 #include "tableCatalogue.h"
+#include "graphCatalogue.h"
 
 using namespace std;
 
@@ -20,12 +23,6 @@ enum QueryType
     SOURCE,
     UNDETERMINED,
     LOAD_GRAPH,
-};
-
-enum GraphType
-{
-    DIRECTED,
-    UNDIRECTED
 };
 
 enum BinaryOperator
@@ -131,7 +128,6 @@ bool syntacticParseRENAME();
 bool syntacticParseSELECTION();
 bool syntacticParseSORT();
 bool syntacticParseSOURCE();
-bool syntacticParseLOAD_GRAPH();
 
 bool isFileExists(string tableName);
 bool isQueryFile(string fileName);

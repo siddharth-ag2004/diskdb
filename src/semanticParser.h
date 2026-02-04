@@ -1,3 +1,5 @@
+#pragma once
+
 #include"syntacticParser.h"
 
 bool semanticParse();

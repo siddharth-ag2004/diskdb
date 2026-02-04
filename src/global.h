@@ -1,3 +1,5 @@
+#pragma once
+
 #include"executor.h"
 
 extern float BLOCK_SIZE;

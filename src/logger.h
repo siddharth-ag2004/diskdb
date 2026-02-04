@@ -1,3 +1,5 @@
+#pragma once
+
 // C++ includes used for precompiling -*- C++ -*-
 
 // Copyright (C) 2003-2015 Free Software Foundation, Inc.

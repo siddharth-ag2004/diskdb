@@ -1,3 +1,5 @@
+#pragma once
+
 #include"logger.h"
 /**
  * @brief The Page object is the main memory representation of a physical page

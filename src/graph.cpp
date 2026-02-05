@@ -1,160 +1,112 @@
 #include "global.h"
 #include "graph.h"
 
-Graph::Graph() {
-    logger.log("Graph::Graph");
-}
-
 Graph::Graph(string graphName, GraphType type) {
     logger.log("Graph::Graph");
     this->graphName = graphName;
     this->graphType = type;
-    if (type == DIRECTED) {
-        this->nodeFileName = "../data/" + graphName + "_Nodes_D.csv";
-        this->edgeFileName = "../data/" + graphName + "_Edges_D.csv";
-    } else {
-        this->nodeFileName = "../data/" + graphName + "_Nodes_U.csv";
-        this->edgeFileName = "../data/" + graphName + "_Edges_U.csv";
-    }
 }
 
 bool Graph::load() {
     logger.log("Graph::load");
 
-    string nodeRelationName = this->graphName + "_Nodes";
-    bool nodesLoaded = this->blockify(this->nodeFileName, nodeRelationName, this->nodeBlockCount, this->nodeCount, this->nodeColumnCount, this->nodesPerBlock);
+    string suffix = (this->graphType == DIRECTED) ? "_D" : "_U";
+    
+    string nodeTableName = this->graphName + "_Nodes" + suffix;
+    string nodeSourceFile = "../data/" + nodeTableName + ".csv";
+    
+    this->nodeTable = new Table(nodeTableName);
 
-    if (!nodesLoaded) {
+    this->nodeTable->sourceFileName = nodeSourceFile;
+    
+    if (!this->nodeTable->load()) {
+        delete this->nodeTable;
         return false;
     }
+    tableCatalogue.insertTable(this->nodeTable);
 
-    string edgeRelationName = this->graphName + "_Edges";
-    bool edgesLoaded = this->blockify(this->edgeFileName, edgeRelationName, this->edgeBlockCount, this->edgeCount, this->edgeColumnCount, this->edgesPerBlock);
+    string edgeTableName = this->graphName + "_Edges" + suffix;
+    string edgeSourceFile = "../data/" + edgeTableName + ".csv";
 
-    if (!edgesLoaded) {
-        // If blockify failed, check if it was because the edge file is valid but empty (only a header).
-        ifstream edgeFile(this->edgeFileName);
-        if (!edgeFile.is_open()) {
-            return false; // File truly doesn't exist.
-        }
-        string line;
-        if (getline(edgeFile, line) && !edgeFile.eof()) { // Header exists.
-            if (edgeFile.peek() == EOF) { // No more content after header.
-                 // This is a valid empty edge file. We need to set its metadata.
-                stringstream s_header(line);
-                string word;
-                this->edgeColumnCount = 0;
-                while (getline(s_header, word, ',')) {
-                    this->edgeColumnCount++;
-                }
-                if (this->edgeColumnCount > 0) {
-                    this->edgesPerBlock = (uint)((BLOCK_SIZE * 1000) / (sizeof(int) * this->edgeColumnCount));
-                }
-                this->edgeCount = 0;
-                this->edgeBlockCount = 0;
-                return true; // Success.
-            }
-        }
-        return false; // Some other error occurred.
-    }
+    this->edgeTable = new Table(edgeTableName);
+    this->edgeTable->sourceFileName = edgeSourceFile;
 
-    return true;
-}
-
-bool Graph::blockify(string inputFileName, string relationName, int &blockCount, long long int &rowCount, int &columnCount, uint &rowsPerBlock)
-{
-    logger.log("Graph::blockify");
-    ifstream fin(inputFileName, ios::in);
-    if (!fin.is_open()) {
+    if (!this->edgeTable->load()) {
+        tableCatalogue.deleteTable(nodeTableName);
+        delete this->edgeTable; 
         return false;
     }
+    tableCatalogue.insertTable(this->edgeTable);
 
-    string line, word;
-    if (!getline(fin, line)) {
-        fin.close();
-        return false;
-    }
+    this->nodeCount = this->nodeTable->rowCount;
+    this->edgeCount = this->edgeTable->rowCount;
 
-    stringstream s_header(line);
-    columnCount = 0;
-    while (getline(s_header, word, ',')) {
-        columnCount++;
-    }
+    string sortedNodeName = this->graphName + "_Nodes_Sorted";
+    if (tableCatalogue.isTable(sortedNodeName)) tableCatalogue.deleteTable(sortedNodeName);
+    
+    this->nodeTable->externalSortCreateNewTable(sortedNodeName, 0);
+    this->sortedNodeTable = tableCatalogue.getTable(sortedNodeName);
 
-    if (columnCount == 0) {
-        fin.close();
-        return false;
-    }
-    rowsPerBlock = (uint)((BLOCK_SIZE * 1000) / (sizeof(int) * columnCount));
-    if (rowsPerBlock == 0) {
-        fin.close();
-        return false;
-    }
+    string sortedEdgeName = this->graphName + "_Edges_Sorted_Src";
+    if (tableCatalogue.isTable(sortedEdgeName)) tableCatalogue.deleteTable(sortedEdgeName);
 
-    vector<int> row(columnCount, 0);
-    vector<vector<int>> rowsInPage(rowsPerBlock, row);
-    int pageCounter = 0;
-    blockCount = 0;
-    rowCount = 0;
+    this->edgeTable->externalSortCreateNewTable(sortedEdgeName, 0);
+    this->sortedEdgeTable = tableCatalogue.getTable(sortedEdgeName);
 
-    while (getline(fin, line)) {
-        stringstream s_row(line);
-        for (int i = 0; i < columnCount; i++) {
-            if (!getline(s_row, word, ',')) {
-                fin.close();
-                return false;
-            }
-            try {
-                row[i] = stoi(word);
-            } catch (const std::exception& e) {
-                fin.close();
-                return false;
-            }
-        }
-        rowsInPage[pageCounter] = row;
-        pageCounter++;
-        rowCount++;
-        if (pageCounter == rowsPerBlock) {
-            bufferManager.writePage(relationName, blockCount, rowsInPage, pageCounter);
-            blockCount++;
-            pageCounter = 0;
-        }
-    }
+    string sortedRevEdgeName = this->graphName + "_Edges_Sorted_Dest";
+    if (tableCatalogue.isTable(sortedRevEdgeName)) tableCatalogue.deleteTable(sortedRevEdgeName);
 
-    if (pageCounter > 0) {
-        bufferManager.writePage(relationName, blockCount, rowsInPage, pageCounter);
-        blockCount++;
-    }
-
-    fin.close();
-
-    if (rowCount == 0) {
-        return false;
-    }
+    this->edgeTable->externalSortCreateNewTable(sortedRevEdgeName, 1);
+    this->sortedReverseEdgeTable = tableCatalogue.getTable(sortedRevEdgeName);
 
     return true;
 }
 
 
 bool Graph::unload() {
-    // TODO: Implement unloading of graph and deletion of temporary files
     logger.log("Graph::unload");
+    
+    string suffix = (this->graphType == DIRECTED) ? "_D" : "_U";
+    
+    string names[] = {
+        this->graphName + "_Nodes" + suffix,
+        this->graphName + "_Edges" + suffix,
+        this->graphName + "_Nodes_Sorted",
+        this->graphName + "_Edges_Sorted_Src",
+        this->graphName + "_Edges_Sorted_Dest"
+    };
+
+    for (const string& name : names) {
+        if (tableCatalogue.isTable(name))
+            tableCatalogue.deleteTable(name);
+    }
+    
     return true;
 }   
 
 void Graph::print() {
     logger.log("Graph::print");
-    // TODO: Implement printing of graph
+    
+    cout << this->nodeCount << endl;
+    cout << this->edgeCount << endl;
+    cout << (this->graphType == DIRECTED ? "D" : "U") << endl;
+    cout << endl; 
+
+    if (this->nodeTable) this->nodeTable->print();
+    cout << endl; 
+    if (this->edgeTable) this->edgeTable->print();
 }
 
 void Graph::makePermanent() {
     logger.log("Graph::makePermanent");
-    // TODO: Implement exporting of graph
+    if (this->nodeTable) this->nodeTable->makePermanent();
+    if (this->edgeTable) this->edgeTable->makePermanent();
 }
 
 bool Graph::isPermanent() {
     logger.log("Graph::isPermanent");
-    // TODO: Implement check if graph is permanent
+    if (this->nodeTable && this->edgeTable)
+        return this->nodeTable->isPermanent() && this->edgeTable->isPermanent();
     return false;
 }
 
@@ -168,4 +120,16 @@ int Graph::getDegree(int nodeId) {
     logger.log("Graph::getDegree");
     // TODO: Implement degree calculation
     return 0;
+}
+
+Cursor Graph::cursorToNode(int nodeId) {
+    // TODO: Implement binary search to find specific node
+    return this->sortedNodeTable->getCursor();
+}
+
+Cursor Graph::cursorToNeighbors(int nodeId, bool searchReverse) {
+    // TODO: Implement binary search to find specific edge range
+    if (searchReverse)
+        return this->sortedReverseEdgeTable->getCursor();
+    return this->sortedEdgeTable->getCursor();
 }

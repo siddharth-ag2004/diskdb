@@ -26,8 +26,12 @@ bool GraphCatalogue::isGraph(string graphName, GraphType graphType)
 void GraphCatalogue::deleteGraph(string graphName, GraphType graphType)
 {
     logger.log("GraphCatalogue::deleteGraph");
-    // TODO: Also delete the temporary files associated with the graph
-    this->graphs.erase({graphName, graphType});
+    if (this->isGraph(graphName, graphType)) {
+        Graph* g = this->graphs.at({graphName, graphType});
+        g->unload(); 
+        delete g;
+        this->graphs.erase({graphName, graphType});
+    }
 }
 
 void GraphCatalogue::print()
@@ -45,6 +49,7 @@ GraphCatalogue::~GraphCatalogue()
     logger.log("GraphCatalogue::~GraphCatalogue");
     for (auto const& [key, val] : this->graphs)
     {
+        val->unload();
         delete val;
     }
 }

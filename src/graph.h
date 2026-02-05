@@ -1,6 +1,6 @@
 #pragma once
 
-#include "cursor.h"
+#include "table.h"
 
 enum GraphType {
     UNDIRECTED,
@@ -13,20 +13,13 @@ public:
     GraphType graphType;
     long long int nodeCount = 0;
     long long int edgeCount = 0;
-    int nodeColumnCount = 0;
-    int edgeColumnCount = 0;
-    int nodeBlockCount = 0;
-    int edgeBlockCount = 0;
-    uint nodesPerBlock = 0;
-    uint edgesPerBlock = 0;
-    string nodeFileName = "";
-    string edgeFileName = "";
+    
+    Table* nodeTable = nullptr;            // Raw loaded nodes
+    Table* edgeTable = nullptr;            // Raw loaded edges
+    Table* sortedNodeTable = nullptr;      // Nodes sorted by ID (Col 0)
+    Table* sortedEdgeTable = nullptr;      // Edges sorted by Src (Col 0)
+    Table* sortedReverseEdgeTable = nullptr; // Edges sorted by Dest (Col 1)
 
-private:
-    bool blockify(string inputFileName, string relationName, int &blockCount, long long int &rowCount, int &columnCount, uint &rowsPerBlock);
-
-public:
-    Graph();
     Graph(string graphName, GraphType type);
 
     bool load();
@@ -35,6 +28,11 @@ public:
     void makePermanent();
     bool isPermanent();
     
+    // Returns cursor on sortedNodeTable positioned at nodeId (or end)
+    Cursor cursorToNode(int nodeId); 
+    // Returns cursor on sortedEdgeTable (or reverse) positioned at start of neighbors
+    Cursor cursorToNeighbors(int nodeId, bool searchReverse = false); 
+
     bool findPath(int srcNodeId, int destNodeId, vector<string> conditions, string newGraphName);
     
     int getDegree(int nodeId);

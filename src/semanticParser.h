@@ -15,6 +15,7 @@ bool semanticParseLIST();
 bool semanticParseLOADTable();
 bool semanticParseLOADGraph();
 
+bool semanticParsePATH();
 bool semanticParsePRINT();
 bool semanticParsePROJECTION();
 bool semanticParseRENAME();

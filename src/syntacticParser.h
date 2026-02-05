@@ -15,14 +15,15 @@ enum QueryType
     JOIN,
     LIST,
     LOAD,
+    PATH,
     PRINT,
     PROJECTION,
     RENAME,
     SELECTION,
     SORT,
     SOURCE,
-    UNDETERMINED,
     LOAD_GRAPH,
+    UNDETERMINED,
 };
 
 enum BinaryOperator
@@ -57,10 +58,19 @@ enum EntityType
     UNDEFINED_ENTITY
 };
 
+
+
 class ParsedQuery
 {
 
 public:
+    struct PathCondition {
+            string attribute; 
+            char type;        
+            int value;        
+            bool isExplicit;  
+    };
+    
     QueryType queryType = UNDETERMINED;
     
     EntityType entityType = UNDEFINED_ENTITY;
@@ -118,6 +128,13 @@ public:
     string loadGraphRelationName = "";
     GraphType graphType;
 
+    // For PATH command of GRAPH
+    string pathResultGraphName = "";
+    string pathGraphName = "";
+    int pathSrcNodeId = -1;
+    int pathDestNodeId = -1;
+    vector<PathCondition> pathConditions;
+
     ParsedQuery();
     void clear();
 };
@@ -131,6 +148,7 @@ bool syntacticParseINDEX();
 bool syntacticParseJOIN();
 bool syntacticParseLIST();
 bool syntacticParseLOAD();
+bool syntacticParsePATH();
 bool syntacticParsePRINT();
 bool syntacticParsePROJECTION();
 bool syntacticParseRENAME();

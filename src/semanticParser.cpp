@@ -12,6 +12,7 @@ bool semanticParse(){
         case LIST: return semanticParseLIST();
         case LOAD: return semanticParseLOADTable();
         case LOAD_GRAPH: return semanticParseLOADGraph();
+        case PATH: return semanticParsePATH();
         case PRINT: return semanticParsePRINT();
         case PROJECTION: return semanticParsePROJECTION();
         case RENAME: return semanticParseRENAME();

@@ -48,6 +48,8 @@ bool syntacticParse()
             return syntacticParseDISTINCT();
         else if (possibleQueryType == "SORT")
             return syntacticParseSORT();
+        else if (possibleQueryType == "PATH")
+            return syntacticParsePATH();
         else
         {
             cout << "SYNTAX ERROR" << endl;
@@ -116,6 +118,13 @@ void ParsedQuery::clear()
     this->sourceFileName = "";
 
     this->loadGraphRelationName = "";
+
+    // PATH command for GRAPH
+    this->pathResultGraphName = "";
+    this->pathGraphName = "";
+    this->pathSrcNodeId = -1;
+    this->pathDestNodeId = -1;
+    this->pathConditions.clear();
 }
 
 /**

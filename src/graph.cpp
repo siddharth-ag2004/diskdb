@@ -1,5 +1,6 @@
 #include "global.h"
 #include "graph.h"
+#include "binarySearch.h"
 
 Graph::Graph(string graphName, GraphType type) {
     logger.log("Graph::Graph");
@@ -80,7 +81,6 @@ bool Graph::unload() {
         if (tableCatalogue.isTable(name))
             tableCatalogue.deleteTable(name);
     }
-    
     return true;
 }   
 
@@ -123,8 +123,30 @@ int Graph::getDegree(int nodeId) {
 }
 
 Cursor Graph::cursorToNode(int nodeId) {
-    // TODO: Implement binary search to find specific node
-    return this->sortedNodeTable->getCursor();
+    logger.log("Graph::cursorToNode");
+
+    string tableName = this->sortedNodeTable->tableName;
+    string columnName = this->sortedNodeTable->columns[0]; // Node ID is in the first column
+
+    pair<int, int> location = findFirstOccurrence(tableName, columnName, nodeId);
+    // cout<< "Binary search for Node ID " << nodeId << " returned page index " << location.first << " and page pointer " << location.second << endl;
+    if (location.first != -1) {
+        cout<< "Node ID " << nodeId << " found at page index " << location.first << " and page pointer " << location.second << endl;
+        Cursor cursor(tableName, location.first);
+        cursor.pagePointer = location.second;
+        return cursor;
+    }
+
+    // If not found, return a cursor to the end of the table
+    cout << "Node ID " << nodeId << " not found. Returning cursor to end of table." << endl;
+    int lastPageIndex = this->sortedNodeTable->blockCount > 0 ? this->sortedNodeTable->blockCount - 1 : 0;
+    Cursor endCursor(tableName, lastPageIndex);
+    if(this->sortedNodeTable->blockCount > 0)
+        endCursor.pagePointer = this->sortedNodeTable->rowsPerBlockCount.back();
+    else
+        endCursor.pagePointer = 0;
+    
+    return endCursor;
 }
 
 Cursor Graph::cursorToNeighbors(int nodeId, bool searchReverse) {

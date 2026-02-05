@@ -1,7 +1,7 @@
 # *****************************************************
 # Variables to control Makefile operation
 
-CXX = g++ -std=c++17
+CXX = g++ -std=c++23
 CXXFLAGS = -g -I . -fsanitize=address,undefined
 
 SRC := $(wildcard *.cpp)

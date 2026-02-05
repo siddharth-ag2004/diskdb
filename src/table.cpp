@@ -469,5 +469,11 @@ void Table::externalSortCreateNewTable(string resultTableName, int columnIndex)
     resultTable->rowCount = this->rowCount;
 
     tableCatalogue.insertTable(resultTable);
+
+    for (const string &runName : runTableNames)
+    {
+        if (tableCatalogue.isTable(runName))
+            tableCatalogue.deleteTable(runName);
+    }
 }
 

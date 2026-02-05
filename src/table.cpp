@@ -338,7 +338,7 @@ int Table::getColumnIndex(string columnName)
 
 struct HeapNode
 {
-    int key;                 // column 0 value
+    int key;                 // "Sort key" value
     vector<int> row;         // full row
     int runIndex;            // which run it came from
 };
@@ -351,7 +351,7 @@ struct HeapCompare
     }
 };
 
-void Table::externalSortCreateNewTable(string resultTableName)
+void Table::externalSortCreateNewTable(string resultTableName, int columnIndex)
 {
     logger.log("Table::externalSortCreateNewTable");
 
@@ -375,11 +375,11 @@ void Table::externalSortCreateNewTable(string resultTableName)
             r++;
         }
 
-        // Sort by column 0
+        // Sort by the specific column index
         sort(rows.begin(), rows.end(),
-             [](const vector<int> &a, const vector<int> &b)
+             [columnIndex](const vector<int> &a, const vector<int> &b)
              {
-                 return a[0] < b[0];
+                 return a[columnIndex] < b[columnIndex];
              });
 
         // Write sorted run (single page per run)
@@ -415,7 +415,7 @@ void Table::externalSortCreateNewTable(string resultTableName)
     {
         vector<int> row = runCursors[i].getNext();
         if (!row.empty())
-            minHeap.push({row[0], row, i});
+            minHeap.push({row[columnIndex], row, i});
     }
 
     vector<vector<int>> outputRows;
@@ -432,7 +432,7 @@ void Table::externalSortCreateNewTable(string resultTableName)
 
         vector<int> nextRow = runCursors[node.runIndex].getNext();
         if (!nextRow.empty())
-            minHeap.push({nextRow[0], nextRow, node.runIndex});
+            minHeap.push({nextRow[columnIndex], nextRow, node.runIndex});
 
         if (outputRows.size() == this->maxRowsPerBlock)
         {

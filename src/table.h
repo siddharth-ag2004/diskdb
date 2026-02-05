@@ -52,8 +52,7 @@ public:
     Cursor getCursor();
     int getColumnIndex(string columnName);
     void unload();
-    
-    void externalSortCreateNewTable(string resultTableName);
+    void externalSortCreateNewTable(string resultTableName, int columnIndex);
 
     /**
  * @brief Static function that takes a vector of valued and prints them out in a

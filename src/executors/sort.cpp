@@ -55,8 +55,9 @@ void executeSORT()
     logger.log("executeSORT");
 
     Table *inputTable = tableCatalogue.getTable(parsedQuery.sortRelationName);
+    int columnIndex = inputTable->getColumnIndex(parsedQuery.sortColumnName);
 
     inputTable->externalSortCreateNewTable(
-        parsedQuery.sortResultRelationName
+        parsedQuery.sortResultRelationName, columnIndex
     );
 }

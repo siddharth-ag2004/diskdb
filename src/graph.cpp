@@ -1,6 +1,11 @@
 #include "global.h"
 #include "graph.h"
 #include "binarySearch.h"
+#include <queue>
+#include <map>
+#include <algorithm>
+#include <climits>
+#include <set>
 
 Graph::Graph(string graphName, GraphType type) {
     logger.log("Graph::Graph");
@@ -21,6 +26,7 @@ bool Graph::load() {
     this->nodeTable->sourceFileName = nodeSourceFile;
     
     if (!this->nodeTable->load()) {
+        cout<<"i am here 1"<<endl;
         delete this->nodeTable;
         return false;
     }
@@ -35,6 +41,7 @@ bool Graph::load() {
     if (!this->edgeTable->load()) {
         tableCatalogue.deleteTable(nodeTableName);
         delete this->edgeTable; 
+        cout<<"i am here 2"<<endl;
         return false;
     }
     tableCatalogue.insertTable(this->edgeTable);
@@ -126,11 +133,6 @@ bool Graph::isPermanent() {
     return false;
 }
 
-bool Graph::findPath(int srcNodeId, int destNodeId, vector<string> conditions, string newGraphName) {
-    logger.log("Graph::findPath");
-    // TODO: Implement path finding algorithm
-    return false;
-}
 
 int Graph::getDegree(int nodeId)
 {
@@ -205,10 +207,25 @@ Cursor Graph::cursorToNode(int nodeId)
 
 
 Cursor Graph::cursorToNeighbors(int nodeId, bool searchReverse) {
-    // TODO: Implement binary search to find specific edge range
-    if (searchReverse)
-        return this->sortedReverseEdgeTable->getCursor();
-    return this->sortedEdgeTable->getCursor();
+    logger.log("Graph::cursorToNeighbors");
+    
+    Table* table = searchReverse ? this->sortedReverseEdgeTable : this->sortedEdgeTable;
+    // Col 0 is Src, Col 1 is Dest. 
+    // Forward Table sorted by Src (0). Reverse Table sorted by Dest (1).
+    string columnName = table->columns[searchReverse ? 1 : 0]; 
+
+    pair<int, int> location = findFirstOccurrence(table->tableName, columnName, nodeId);
+
+    if (location.first != -1) {
+        Cursor cursor(table->tableName, location.first);
+        cursor.pagePointer = location.second;
+        return cursor;
+    }
+
+    int lastPageIndex = table->blockCount > 0 ? table->blockCount - 1 : 0;
+    Cursor endCursor(table->tableName, lastPageIndex);
+    endCursor.pagePointer = (table->blockCount > 0) ? table->rowsPerBlockCount.back() : 0;
+    return endCursor;
 }
 
 long long Graph::countRowsBetween(
@@ -242,4 +259,257 @@ long long Graph::countRowsBetween(
         return 0;
 
     return endRowId - startRowId;
+}
+
+
+int Graph::getAttributeValue(const vector<int>& row, const vector<string>& columns, string colName) {
+    for(size_t i=0; i<columns.size(); i++) {
+        if(columns[i] == colName) return row[i];
+    }
+    return -1;
+}
+
+bool Graph::checkConditions(const vector<int>& row, const vector<string>& columns, 
+                            const vector<PathCondition>& conditions, char type) {
+    if (row.empty()) return false;
+    for (const auto& cond : conditions) {
+        if (cond.type != type) continue;
+        if (cond.attribute == "ANY") continue; 
+        int val = getAttributeValue(row, columns, cond.attribute);
+        if (cond.isExplicit) {
+            if (val != cond.value) return false;
+        }
+    }
+    return true;
+}
+
+struct PQItem {
+    int u, cost;
+    bool operator>(const PQItem& other) const { return cost > other.cost; }
+};
+
+PathResult Graph::runDijkstra(int src, int dest, const vector<PathCondition>& conditions) {
+    priority_queue<PQItem, vector<PQItem>, greater<PQItem>> pq;
+    map<int, int> dist;
+    map<int, pair<int, vector<int>>> parent; 
+
+    pq.push({src, 0});
+    dist[src] = 0;
+
+    // Check Source Node
+    Cursor srcC = cursorToNode(src);
+    vector<int> srcRow = srcC.getNext();
+    if (srcRow.empty() || srcRow[0] != src || !checkConditions(srcRow, nodeTable->columns, conditions, 'N')) {
+        return {false, 0, {}, {}};
+    }
+
+    PathResult result;
+    result.found = false;
+
+    while (!pq.empty()) {
+        int u = pq.top().u;
+        int d = pq.top().cost;
+        pq.pop();
+
+        if (d > dist[u]) continue;
+        
+        if (u == dest) {
+            // Check Dest Conditions
+            Cursor destC = cursorToNode(dest);
+            vector<int> destRow = destC.getNext();
+            if (destRow.empty() || destRow[0] != dest || !checkConditions(destRow, nodeTable->columns, conditions, 'N')) {
+                continue; 
+            }
+            result.found = true;
+            result.totalWeight = d;
+            break; 
+        }
+
+        int iterations = (graphType == DIRECTED) ? 1 : 2;
+        for(int k=0; k<iterations; k++) {
+            bool searchReverse = (k == 1);
+            Cursor edgeCursor = cursorToNeighbors(u, searchReverse);
+
+            while (true) {
+                vector<int> edgeRow = edgeCursor.getNext();
+                if (edgeRow.empty()) break;
+
+                int rowSrc = edgeRow[0];
+                int rowDest = edgeRow[1];
+                int weight = edgeRow[2];
+                int v = -1;
+
+                if (!searchReverse) {
+                    if (rowSrc != u) break;
+                    v = rowDest;
+                } else {
+                    if (rowDest != u) break;
+                    v = rowSrc;
+                }
+
+                if (!checkConditions(edgeRow, edgeTable->columns, conditions, 'E')) continue;
+
+                if (dist.find(v) == dist.end() || d + weight < dist[v]) {
+                    if (v != dest) { 
+                        Cursor nodeC = cursorToNode(v);
+                        vector<int> nodeRow = nodeC.getNext();
+                        if (nodeRow.empty() || nodeRow[0] != v || !checkConditions(nodeRow, nodeTable->columns, conditions, 'N')) continue;
+                    }
+                    dist[v] = d + weight;
+                    parent[v] = {u, edgeRow};
+                    pq.push({v, dist[v]});
+                }
+            }
+        }
+    }
+
+    if (result.found) {
+        int curr = dest;
+        while (curr != src) {
+            result.pathNodes.push_back(curr);
+            auto p = parent[curr];
+            result.pathEdges.push_back(p.second);
+            curr = p.first;
+        }
+        result.pathNodes.push_back(src);
+        reverse(result.pathNodes.begin(), result.pathNodes.end());
+        reverse(result.pathEdges.begin(), result.pathEdges.end());
+    }
+    return result;
+}
+
+bool Graph::findPath(string resultGraphName, int srcNodeId, int destNodeId, vector<PathCondition> conditions) {
+    logger.log("Graph::findPath");
+
+    Cursor srcCursor = cursorToNode(srcNodeId);
+    vector<int> srcRow = srcCursor.getNext();
+    Cursor destCursor = cursorToNode(destNodeId);
+    vector<int> destRow = destCursor.getNext();
+
+    if (srcRow.empty() || srcRow[0] != srcNodeId || destRow.empty() || destRow[0] != destNodeId) {
+        cout << "Node does not exist" << endl;
+        return false;
+    }
+
+    // 1. Resolve Implicit Node Conditions
+    vector<PathCondition> baseConditions;
+    for (auto& cond : conditions) {
+        if (cond.type == 'N' && !cond.isExplicit && cond.attribute != "ANY") {
+            int val = getAttributeValue(srcRow, nodeTable->columns, cond.attribute);
+            if(val == -1) { cout << "SEMANTIC ERROR: Attribute " << cond.attribute << " missing" << endl; return false; }
+            PathCondition fixed = cond;
+            fixed.value = val;
+            fixed.isExplicit = true;
+            baseConditions.push_back(fixed);
+        } else {
+            baseConditions.push_back(cond);
+        }
+    }
+
+    // 2. Generate Plans (Implicit Edge 0/1 branching)
+    vector<vector<PathCondition>> executionPlans;
+    executionPlans.push_back(baseConditions);
+
+    for (int i = 0; i < (int)baseConditions.size(); i++) {
+        if (baseConditions[i].type == 'E' && !baseConditions[i].isExplicit && baseConditions[i].attribute != "ANY") {
+            vector<vector<PathCondition>> newPlans;
+            for (auto& plan : executionPlans) {
+                auto p0 = plan; p0[i].value = 0; p0[i].isExplicit = true; newPlans.push_back(p0);
+                auto p1 = plan; p1[i].value = 1; p1[i].isExplicit = true; newPlans.push_back(p1);
+            }
+            executionPlans = newPlans;
+        }
+    }
+    
+    // TODO: Handle ANY(N) and ANY(E) expansion here if required
+
+    // 3. Run Dijkstra
+    PathResult bestResult;
+    bestResult.found = false;
+    bestResult.totalWeight = INT_MAX;
+
+    for (const auto& plan : executionPlans) {
+        PathResult res = runDijkstra(srcNodeId, destNodeId, plan);
+        if (res.found) {
+            if (!bestResult.found || res.totalWeight < bestResult.totalWeight) {
+                bestResult = res;
+            }
+        }
+    }
+
+    if (!bestResult.found) {
+        cout << "FALSE" << endl;
+        return false;
+    }
+
+    cout << "TRUE " << bestResult.totalWeight << endl;
+
+    // 4. Save Result (Write to temporary files)
+    string suffix = (this->graphType == DIRECTED) ? "_D" : "_U";
+    string resNodeName = resultGraphName + "_Nodes" + suffix;
+    string resEdgeName = resultGraphName + "_Edges" + suffix;
+
+    // Clean up previous existence of result files
+    if (tableCatalogue.isTable(resNodeName)) tableCatalogue.deleteTable(resNodeName);
+    if (tableCatalogue.isTable(resEdgeName)) tableCatalogue.deleteTable(resEdgeName);
+
+    Table* resNodes = new Table(resNodeName, nodeTable->columns);
+    Table* resEdges = new Table(resEdgeName, edgeTable->columns);
+
+    for(int nodeId : bestResult.pathNodes) {
+        Cursor c = cursorToNode(nodeId);
+        resNodes->writeRow(c.getNext());
+    }
+    for(const auto& eRow : bestResult.pathEdges) {
+        resEdges->writeRow(eRow);
+    }
+
+    // Blockify and insert into catalogue (as temporary tables)
+    if (resNodes->blockify()) {
+        tableCatalogue.insertTable(resNodes);
+    } else {
+        tableCatalogue.insertTable(resNodes);
+    }
+
+    if (resEdges->blockify()) {
+        tableCatalogue.insertTable(resEdges);
+    } else {
+        tableCatalogue.insertTable(resEdges);
+    }
+    
+    // 5. Create and Register Graph Object directly
+    
+    if(graphCatalogue.isGraph(resultGraphName, this->graphType)) {
+        graphCatalogue.deleteGraph(resultGraphName, this->graphType);
+    }
+
+    Graph* resGraph = new Graph(resultGraphName, this->graphType);
+    
+    // Manually set tables to the ones we just created (which are now in catalogue)
+    resGraph->nodeTable = resNodes;
+    resGraph->edgeTable = resEdges;
+    resGraph->nodeCount = resNodes->rowCount;
+    resGraph->edgeCount = resEdges->rowCount;
+    
+   
+    string sortedNodeName = resGraph->graphName + "_Nodes_Sorted";
+    if (tableCatalogue.isTable(sortedNodeName)) tableCatalogue.deleteTable(sortedNodeName);
+    resNodes->externalSortCreateNewTable(sortedNodeName, 0);
+    resGraph->sortedNodeTable = tableCatalogue.getTable(sortedNodeName);
+
+    string sortedEdgeName = resGraph->graphName + "_Edges_Sorted_Src";
+    if (tableCatalogue.isTable(sortedEdgeName)) tableCatalogue.deleteTable(sortedEdgeName);
+    resEdges->externalSortCreateNewTable(sortedEdgeName, 0);
+    resGraph->sortedEdgeTable = tableCatalogue.getTable(sortedEdgeName);
+
+    string sortedRevEdgeName = resGraph->graphName + "_Edges_Sorted_Dest";
+    if (tableCatalogue.isTable(sortedRevEdgeName)) tableCatalogue.deleteTable(sortedRevEdgeName);
+    resEdges->externalSortCreateNewTable(sortedRevEdgeName, 1);
+    resGraph->sortedReverseEdgeTable = tableCatalogue.getTable(sortedRevEdgeName);
+
+   
+    graphCatalogue.insertGraph(resGraph);
+
+
+    return true;
 }

@@ -53,7 +53,7 @@ bool syntacticParsePATH()
                 return false;
             }
 
-            ParsedQuery::PathCondition condition;
+            PathCondition condition;
 
             size_t openParen = token.find('(');
             size_t closeParen = token.find(')');
@@ -191,3 +191,22 @@ bool semanticParsePATH()
     return true;
 }
 
+void executePATH() {
+    logger.log("executePATH");
+
+    GraphType type = DIRECTED; 
+    if (graphCatalogue.isGraph(parsedQuery.pathGraphName, UNDIRECTED)) {
+        type = UNDIRECTED;
+    } else if (!graphCatalogue.isGraph(parsedQuery.pathGraphName, DIRECTED)) {
+        cout << "SEMANTIC ERROR: Graph doesn't exist" << endl;
+        return;
+    }
+
+    Graph* graph = graphCatalogue.getGraph(parsedQuery.pathGraphName, type);
+    
+
+    graph->findPath(parsedQuery.pathResultGraphName, 
+                    parsedQuery.pathSrcNodeId, 
+                    parsedQuery.pathDestNodeId, 
+                    parsedQuery.pathConditions);
+}

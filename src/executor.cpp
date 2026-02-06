@@ -13,6 +13,7 @@ void executeCommand(){
         case LIST: executeLIST(); break;
         case LOAD: executeLOADTable(); break;
         case LOAD_GRAPH: executeLOADGraph(); break;
+        case PATH: executePATH(); break;
         case PRINT: executePRINT(); break;
         case PROJECTION: executePROJECTION(); break;
         case RENAME: executeRENAME(); break;

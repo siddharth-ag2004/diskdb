@@ -14,6 +14,7 @@ void executeJOIN();
 void executeLIST();
 void executeLOADTable();
 void executeLOADGraph();
+void executePATH();
 void executePRINT();
 void executePROJECTION();
 void executeRENAME();

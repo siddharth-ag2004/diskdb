@@ -7,8 +7,28 @@ enum GraphType {
     DIRECTED,
     UNKOWN,
 };
+struct PathCondition {
+            string attribute; 
+            char type;        
+            int value;        
+            bool isExplicit;  
+    };
+struct PathResult {
+    bool found;
+    int totalWeight;
+    vector<int> pathNodes;         
+    vector<vector<int>> pathEdges; 
+};
 
 class Graph {
+
+private:
+   // Helpers
+    int getAttributeValue(const vector<int>& row, const vector<string>& columns, string colName);
+    bool checkConditions(const vector<int>& row, const vector<string>& columns, 
+                         const vector<PathCondition>& conditions, char type);
+    PathResult runDijkstra(int src, int dest, const vector<PathCondition>& conditions);
+
 public:
     string graphName = "";
     GraphType graphType;
@@ -24,6 +44,7 @@ public:
     Graph(string graphName, GraphType type);
 
     bool load();
+    bool loadResult();
     bool unload();
     void print();
     void makePermanent();
@@ -40,7 +61,9 @@ public:
         Table* table
     );
 
-    bool findPath(int srcNodeId, int destNodeId, vector<string> conditions, string newGraphName);
+    // bool findPath(int srcNodeId, int destNodeId, vector<string> conditions, string newGraphName);
     
     int getDegree(int nodeId);
+    bool findPath(string resultGraphName, int srcNodeId, int destNodeId, 
+                  vector<PathCondition> conditions);
 };

@@ -66,12 +66,6 @@ class ParsedQuery
 {
 
 public:
-    struct PathCondition {
-            string attribute; 
-            char type;        
-            int value;        
-            bool isExplicit;  
-    };
     
     QueryType queryType = UNDETERMINED;
     

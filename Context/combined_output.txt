@@ -135,38 +135,77 @@ bool Graph::findPath(int srcNodeId, int destNodeId, vector<string> conditions, s
     return false;
 }
 
-int Graph::getDegree(int nodeId) {
+int Graph::getDegree(int nodeId)
+{
     logger.log("Graph::getDegree");
-    // TODO: Implement degree calculation
-    return 0;
-}
 
-Cursor Graph::cursorToNode(int nodeId) {
-    logger.log("Graph::cursorToNode");
+    long long degree = 0;
 
-    string tableName = this->sortedNodeTable->tableName;
-    string columnName = this->sortedNodeTable->columns[0]; // Node ID is in the first column
+    // OUT DEGREE
+    {
+        Table* table = this->sortedEdgeTable; // sorted by Src
+        pair<int,int> start = findFirstOccurrence(
+            table->tableName,
+            table->columns[0],  // SrcNodeID
+            nodeId
+        );
 
-    pair<int, int> location = findFirstOccurrence(tableName, columnName, nodeId);
-    // cout<< "Binary search for Node ID " << nodeId << " returned page index " << location.first << " and page pointer " << location.second << endl;
-    if (location.first != -1) {
-        cout<< "Node ID " << nodeId << " found at page index " << location.first << " and page pointer " << location.second << endl;
-        Cursor cursor(tableName, location.first);
-        cursor.pagePointer = location.second;
-        return cursor;
+        pair<int,int> end = findFirstOccurrence(
+            table->tableName,
+            table->columns[0],
+            nodeId + 1
+        );
+
+        degree += countRowsBetween(start, end, table);
     }
 
-    // If not found, return a cursor to the end of the table
-    cout << "Node ID " << nodeId << " not found. Returning cursor to end of table." << endl;
-    int lastPageIndex = this->sortedNodeTable->blockCount > 0 ? this->sortedNodeTable->blockCount - 1 : 0;
-    Cursor endCursor(tableName, lastPageIndex);
-    if(this->sortedNodeTable->blockCount > 0)
-        endCursor.pagePointer = this->sortedNodeTable->rowsPerBlockCount.back();
-    else
-        endCursor.pagePointer = 0;
-    
-    return endCursor;
+    //  IN DEGREE
+    {
+        Table* table = this->sortedReverseEdgeTable; // sorted by Dest
+        pair<int,int> start = findFirstOccurrence(
+            table->tableName,
+            table->columns[1],  // DestNodeID
+            nodeId
+        );
+
+        pair<int,int> end = findFirstOccurrence(
+            table->tableName,
+            table->columns[1],
+            nodeId + 1
+        );
+
+        degree += countRowsBetween(start, end, table);
+    }
+
+    return (int)degree;
 }
+
+Cursor Graph::cursorToNode(int nodeId)
+{
+    logger.log("Graph::cursorToNode");
+
+    Table* table = this->sortedNodeTable;
+    string tableName = table->tableName;
+
+    pair<int, int> loc = findFirstOccurrence(
+        tableName,
+        table->columns[0],  // NodeID column
+        nodeId
+    );
+
+    // If table is empty or something went wrong
+    if (loc.first == -1) {
+        logger.log("Table is empty or error in binary search");
+        Cursor endCursor(tableName, 0);
+        endCursor.pagePointer = 0;
+        return endCursor;
+    }
+
+    Cursor cursor(tableName, loc.first);
+    cursor.pagePointer = loc.second;
+    return cursor;
+}
+
 
 Cursor Graph::cursorToNeighbors(int nodeId, bool searchReverse) {
     // TODO: Implement binary search to find specific edge range
@@ -174,6 +213,40 @@ Cursor Graph::cursorToNeighbors(int nodeId, bool searchReverse) {
         return this->sortedReverseEdgeTable->getCursor();
     return this->sortedEdgeTable->getCursor();
 }
+
+long long Graph::countRowsBetween(
+    pair<int,int> start,
+    pair<int,int> end,
+    Table* table
+) {
+    logger.log("Graph::countRowsBetween");
+
+    if (table == nullptr)
+        return 0;
+
+    // Convert start to global row ID
+    long long startRowId =
+        (long long)start.first * table->maxRowsPerBlock
+        + start.second;
+
+    // Convert end to global row ID
+    long long endRowId =
+        (long long)end.first * table->maxRowsPerBlock
+        + end.second;
+
+    // Clamp to valid bounds
+    if (startRowId < 0)
+        startRowId = 0;
+
+    if (endRowId > table->rowCount)
+        endRowId = table->rowCount;
+
+    if (endRowId < startRowId)
+        return 0;
+
+    return endRowId - startRowId;
+}
+
 ```
 
 --- ./table.h ---
@@ -285,19 +358,35 @@ void GraphCatalogue::insertGraph(Graph* graph)
 
 Graph* GraphCatalogue::getGraph(string graphName, GraphType graphType)
 {
-    logger.log("GraphCatalogue::getGraph");
-    if (this->isGraph(graphName, graphType))
-        return this->graphs.at({graphName, graphType});
-    return nullptr;
+    if (graphType == UNKOWN) {
+        auto itD = graphs.find({graphName, DIRECTED});
+        if (itD != graphs.end())
+            return itD->second;
+
+        auto itU = graphs.find({graphName, UNDIRECTED});
+        if (itU != graphs.end())
+            return itU->second;
+
+        return nullptr;
+    }
+
+    auto it = graphs.find({graphName, graphType});
+    if (it == graphs.end())
+        return nullptr;
+
+    return it->second;
 }
 
 bool GraphCatalogue::isGraph(string graphName, GraphType graphType)
 {
-    logger.log("GraphCatalogue::isGraph");
-    if (this->graphs.count({graphName, graphType}))
-        return true;
-    return false;
+    if (graphType == UNKOWN) {
+        return graphs.find({graphName, DIRECTED}) != graphs.end()
+            || graphs.find({graphName, UNDIRECTED}) != graphs.end();
+    }
+
+    return graphs.find({graphName, graphType}) != graphs.end();
 }
+
 
 void GraphCatalogue::deleteGraph(string graphName, GraphType graphType)
 {
@@ -600,6 +689,7 @@ bool semanticParseCLEAR();
 bool semanticParseCROSS();
 bool semanticParseDISTINCT();
 bool semanticParseEXPORT();
+bool semanticParseEXPORTGraph();
 bool semanticParseINDEX();
 bool semanticParseJOIN();
 bool semanticParseLIST();
@@ -614,6 +704,7 @@ bool semanticParseRENAME();
 bool semanticParseSELECTION();
 bool semanticParseSORT();
 bool semanticParseSOURCE();
+bool semanticParseDEGREE();
 ```
 
 --- ./binarySearch.cpp ---
@@ -632,7 +723,7 @@ bool semanticParseSOURCE();
  * @param rowId The global ID of the row to retrieve.
  * @return vector<int> The row data. Returns an empty vector if not found.
  */
-vector<int> getTableRow(string tableName, int rowId) {
+vector<int> getRow(string tableName, int rowId) {
     logger.log("binarySearch::getRow");
     Table* table = tableCatalogue.getTable(tableName);
     if (table == nullptr || rowId < 0 || rowId >= table->rowCount) {
@@ -641,76 +732,79 @@ vector<int> getTableRow(string tableName, int rowId) {
     int pageIndex = rowId / table->maxRowsPerBlock;
     int rowIndexInPage = rowId % table->maxRowsPerBlock;
     
-    // Check if the calculated pageIndex is valid
     if (pageIndex >= table->blockCount) {
+        return {};
+    }
+
+    // Use table->rowsPerBlockCount to check the number of rows
+    if (rowIndexInPage >= table->rowsPerBlockCount[pageIndex]) {
         return {};
     }
 
     Page page = bufferManager.getPage(tableName, pageIndex);
     
-    // Check if the rowIndexInPage is valid for the given page
-    if (rowIndexInPage >= table->rowCount) {
-        return {};
-    }
-
     return page.getRow(rowIndexInPage);
 }
 
 /**
- * @brief Finds the first occurrence of a value in a sorted column of a table.
+ * @brief Finds the first occurrence of a value in a sorted column of a table,
+ *        or the first occurrence of the next higher value if the value is not found.
  *
  * @param tableName The name of the table to search in.
  * @param columnName The name of the sorted column to search.
  * @param value The value to search for.
  * @return pair<int, int> A pair containing the page index and row index in page. 
- *                        Returns {-1, -1} if the value is not found.
+ *                        Returns {-1, -1} if no value >= the search value is found.
  */
-pair<int, int> findFirstOccurrence(string tableName, string columnName, int value) {
+pair<int, int> findFirstOccurrence(string tableName, string columnName, int value)
+{
     logger.log("binarySearch::findFirstOccurrence");
+
     Table* table = tableCatalogue.getTable(tableName);
     if (table == nullptr) {
-        cout << "Table not found: " << tableName << endl;
         return {-1, -1};
     }
 
     int columnIndex = table->getColumnIndex(columnName);
     if (columnIndex == -1) {
-        cout << "Column not found: " << columnName << endl;
         return {-1, -1};
     }
 
-    long long int low = 0, high = table->rowCount - 1;
-    long long int resultRowId = -1;
+    long long low = 0, high = table->rowCount - 1;
 
     while (low <= high) {
-        long long int mid = low + (high - low) / 2;
-        vector<int> row = getTableRow(tableName, mid);
+        long long mid = low + (high - low) / 2;
+        vector<int> row = getRow(tableName, mid);
 
         if (row.empty()) {
-            // This might happen if the last page has fewer rows than maxRowsPerBlock.
-            // If mid is out of bounds, getRow returns empty.
-            // Let's try to search in the lower half.
             high = mid - 1;
             continue;
         }
 
         if (row[columnIndex] >= value) {
-            if (row[columnIndex] == value) {
-                resultRowId = mid;
-            }
             high = mid - 1;
         } else {
             low = mid + 1;
         }
     }
 
-    if (resultRowId != -1) {
-        int pageIndex = resultRowId / table->maxRowsPerBlock;
-        int rowIndexInPage = resultRowId % table->maxRowsPerBlock;
-        return {pageIndex, rowIndexInPage};
+    if (low > table->rowCount) {
+        return {-1, -1};
     }
 
-    return {-1, -1};
+    // Convert global row ID → page, offset
+    int pageIndex = low / table->maxRowsPerBlock;
+    int rowIndexInPage = low % table->maxRowsPerBlock;
+
+    // Case: position is exactly after last row
+    if (low == table->rowCount) {
+        int lastPage = table->blockCount - 1;
+        int lastRowCount = table->rowsPerBlockCount[lastPage];
+
+        return {lastPage, lastRowCount};
+    }
+
+    return {pageIndex, rowIndexInPage};
 }
 
 ```
@@ -727,6 +821,7 @@ void executeCLEAR();
 void executeCROSS();
 void executeDISTINCT();
 void executeEXPORT();
+void executeEXPORTGraph();
 void executeINDEX();
 void executeJOIN();
 void executeLIST();
@@ -738,6 +833,7 @@ void executeRENAME();
 void executeSELECTION();
 void executeSORT();
 void executeSOURCE();
+void executeDEGREE();
 
 bool evaluateBinOp(int value1, int value2, BinaryOperator binaryOperator);
 void printRowCount(int rowCount);
@@ -844,11 +940,11 @@ enum QueryType
     CROSS,
     DISTINCT,
     EXPORT,
+    EXPORT_GRAPH,
     INDEX,
     JOIN,
     LIST,
     LOAD,
-    PATH,
     PRINT,
     PROJECTION,
     RENAME,
@@ -856,6 +952,8 @@ enum QueryType
     SORT,
     SOURCE,
     LOAD_GRAPH,
+    PATH,
+    DEGREE,
     UNDETERMINED,
 };
 
@@ -968,6 +1066,10 @@ public:
     int pathDestNodeId = -1;
     vector<PathCondition> pathConditions;
 
+    // For DEGREE command of GRAPH
+    string degreeGraphName = "";
+    int degreeNodeId = -1;
+
     ParsedQuery();
     void clear();
 };
@@ -988,6 +1090,7 @@ bool syntacticParseRENAME();
 bool syntacticParseSELECTION();
 bool syntacticParseSORT();
 bool syntacticParseSOURCE();
+bool syntacticParseDEGREE();
 
 bool isFileExists(string tableName);
 bool isQueryFile(string fileName);
@@ -1097,6 +1200,8 @@ bool syntacticParse()
         return syntacticParseEXPORT();
     else if(possibleQueryType == "SOURCE")
         return syntacticParseSOURCE();
+    else if (possibleQueryType == "DEGREE")
+        return syntacticParseDEGREE();
     else
     {
         string resultantRelationName = possibleQueryType;
@@ -1254,7 +1359,8 @@ bool isQueryFile(string fileName){
 
 enum GraphType {
     UNDIRECTED,
-    DIRECTED
+    DIRECTED,
+    UNKOWN,
 };
 
 class Graph {
@@ -1282,6 +1388,12 @@ public:
     Cursor cursorToNode(int nodeId); 
     // Returns cursor on sortedEdgeTable (or reverse) positioned at start of neighbors
     Cursor cursorToNeighbors(int nodeId, bool searchReverse = false); 
+
+    long long countRowsBetween(
+        pair<int,int> start,
+        pair<int,int> end,
+        Table* table
+    );
 
     bool findPath(int srcNodeId, int destNodeId, vector<string> conditions, string newGraphName);
     
@@ -1350,6 +1462,7 @@ void executeCommand(){
         case CROSS: executeCROSS(); break;
         case DISTINCT: executeDISTINCT(); break;
         case EXPORT: executeEXPORT(); break;
+        case EXPORT_GRAPH: executeEXPORTGraph(); break;
         case INDEX: executeINDEX(); break;
         case JOIN: executeJOIN(); break;
         case LIST: executeLIST(); break;
@@ -1361,6 +1474,7 @@ void executeCommand(){
         case SELECTION: executeSELECTION(); break;
         case SORT: executeSORT(); break;
         case SOURCE: executeSOURCE(); break;
+        case DEGREE: executeDEGREE(); break;
         default: cout<<"PARSING ERROR"<<endl;
     }
 
@@ -2171,6 +2285,7 @@ bool semanticParse(){
         case CROSS: return semanticParseCROSS();
         case DISTINCT: return semanticParseDISTINCT();
         case EXPORT: return semanticParseEXPORT();
+        case EXPORT_GRAPH: return semanticParseEXPORTGraph();
         case INDEX: return semanticParseINDEX();
         case JOIN: return semanticParseJOIN();
         case LIST: return semanticParseLIST();
@@ -2183,6 +2298,7 @@ bool semanticParse(){
         case SELECTION: return semanticParseSELECTION();
         case SORT: return semanticParseSORT();
         case SOURCE: return semanticParseSOURCE();
+        case DEGREE: return semanticParseDEGREE();
         default: cout<<"SEMANTIC ERROR"<<endl;
     }
 
@@ -2831,14 +2947,33 @@ void executeINDEX()
 bool syntacticParseEXPORT()
 {
     logger.log("syntacticParseEXPORT");
-    if (tokenizedQuery.size() != 2)
+    if (tokenizedQuery.size() < 2)
     {
         cout << "SYNTAX ERROR" << endl;
         return false;
     }
-    parsedQuery.queryType = EXPORT;
-    parsedQuery.exportRelationName = tokenizedQuery[1];
-    return true;
+    if (tokenizedQuery[1] == "GRAPH")
+    {
+        if (tokenizedQuery.size() != 3)
+        {
+            cout << "SYNTAX ERROR" << endl;
+            return false;
+        }
+        parsedQuery.queryType = EXPORT_GRAPH;
+        parsedQuery.exportRelationName = tokenizedQuery[2];
+        return true;
+    }
+    else
+    {
+        if (tokenizedQuery.size() != 2)
+        {
+            cout << "SYNTAX ERROR" << endl;
+            return false;
+        }
+        parsedQuery.queryType = EXPORT;
+        parsedQuery.exportRelationName = tokenizedQuery[1];
+        return true;
+    }
 }
 
 bool semanticParseEXPORT()
@@ -2851,11 +2986,28 @@ bool semanticParseEXPORT()
     return false;
 }
 
+bool semanticParseEXPORTGraph()
+{
+    logger.log("semanticParseEXPORTGraph");
+    if (graphCatalogue.isGraph(parsedQuery.exportRelationName, UNKOWN))
+        return true;
+    cout << "SEMANTIC ERROR: Graph doesn't exist" << endl;
+    return false;
+}
+
 void executeEXPORT()
 {
     logger.log("executeEXPORT");
     Table* table = tableCatalogue.getTable(parsedQuery.exportRelationName);
     table->makePermanent();
+    return;
+}
+
+void executeEXPORTGraph()
+{
+    logger.log("executeEXPORTGraph");
+    Graph* graph = graphCatalogue.getGraph(parsedQuery.exportRelationName, UNKOWN);
+    graph->makePermanent();
     return;
 }
 ```
@@ -3391,6 +3543,47 @@ void executeSELECTION()
     }
     return;
 }
+```
+
+--- ./executors/degree.cpp ---
+```
+#include "global.h"
+
+bool syntacticParseDEGREE()
+{
+    logger.log("syntacticParseDEGREE");
+    if (tokenizedQuery.size() != 3)
+    {
+        cout << "SYNTAX ERROR: Incorrect number of arguments for DEGREE" << endl;
+        return false;
+    }
+    parsedQuery.queryType = DEGREE;
+    parsedQuery.degreeGraphName = tokenizedQuery[1];
+    parsedQuery.degreeNodeId = stoi(tokenizedQuery[2]);
+    return true;
+}
+
+bool semanticParseDEGREE()
+{
+    logger.log("semanticParseDEGREE");
+    if (!graphCatalogue.isGraph(parsedQuery.degreeGraphName, UNKOWN))
+    {
+        cout << "SEMANTIC ERROR: Graph not found" << endl;
+        return false;
+    }
+    return true;
+}
+
+void executeDEGREE()
+{
+    logger.log("executeDEGREE");
+    Graph* graph = graphCatalogue.getGraph(parsedQuery.degreeGraphName, UNKOWN);
+
+    int degree = graph->getDegree(parsedQuery.degreeNodeId);
+    cout << "Degree of node " << parsedQuery.degreeNodeId << " in graph " << parsedQuery.degreeGraphName << " is: " << degree << endl;
+    return;
+}
+
 ```
 
 --- ./executors/rename.cpp ---

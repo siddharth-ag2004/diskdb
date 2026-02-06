@@ -111,7 +111,7 @@ void Graph::print() {
             this->edgeTable->writeRow(row, cout);
         }
     }
-}
+} 
 
 void Graph::makePermanent() {
     logger.log("Graph::makePermanent");

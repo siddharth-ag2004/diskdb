@@ -11,6 +11,7 @@ enum QueryType
     CROSS,
     DISTINCT,
     EXPORT,
+    EXPORT_GRAPH,
     INDEX,
     JOIN,
     LIST,

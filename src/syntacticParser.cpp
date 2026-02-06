@@ -27,6 +27,8 @@ bool syntacticParse()
         return syntacticParseEXPORT();
     else if(possibleQueryType == "SOURCE")
         return syntacticParseSOURCE();
+    else if (possibleQueryType == "DEGREE")
+        return syntacticParseDEGREE();
     else
     {
         string resultantRelationName = possibleQueryType;

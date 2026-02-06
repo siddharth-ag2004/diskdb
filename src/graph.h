@@ -4,7 +4,8 @@
 
 enum GraphType {
     UNDIRECTED,
-    DIRECTED
+    DIRECTED,
+    UNKOWN,
 };
 
 class Graph {
@@ -32,6 +33,12 @@ public:
     Cursor cursorToNode(int nodeId); 
     // Returns cursor on sortedEdgeTable (or reverse) positioned at start of neighbors
     Cursor cursorToNeighbors(int nodeId, bool searchReverse = false); 
+
+    long long countRowsBetween(
+        pair<int,int> start,
+        pair<int,int> end,
+        Table* table
+    );
 
     bool findPath(int srcNodeId, int destNodeId, vector<string> conditions, string newGraphName);
     

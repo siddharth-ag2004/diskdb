@@ -11,14 +11,15 @@ bool semanticParse(){
         case JOIN: return semanticParseJOIN();
         case LIST: return semanticParseLIST();
         case LOAD: return semanticParseLOADTable();
-        case LOAD_GRAPH: return semanticParseLOADGraph();
-        case PATH: return semanticParsePATH();
         case PRINT: return semanticParsePRINT();
         case PROJECTION: return semanticParsePROJECTION();
         case RENAME: return semanticParseRENAME();
         case SELECTION: return semanticParseSELECTION();
         case SORT: return semanticParseSORT();
         case SOURCE: return semanticParseSOURCE();
+        case LOAD_GRAPH: return semanticParseLOADGraph();
+        case PATH: return semanticParsePATH();
+        case DEGREE: return semanticParseDEGREE();
         default: cout<<"SEMANTIC ERROR"<<endl;
     }
 

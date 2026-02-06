@@ -12,13 +12,14 @@ void executeINDEX();
 void executeJOIN();
 void executeLIST();
 void executeLOADTable();
-void executeLOADGraph();
 void executePRINT();
 void executePROJECTION();
 void executeRENAME();
 void executeSELECTION();
 void executeSORT();
 void executeSOURCE();
+void executeLOADGraph();
+void executeDEGREE();
 
 bool evaluateBinOp(int value1, int value2, BinaryOperator binaryOperator);
 void printRowCount(int rowCount);

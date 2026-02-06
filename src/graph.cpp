@@ -132,42 +132,114 @@ bool Graph::findPath(int srcNodeId, int destNodeId, vector<string> conditions, s
     return false;
 }
 
-int Graph::getDegree(int nodeId) {
+int Graph::getDegree(int nodeId)
+{
     logger.log("Graph::getDegree");
-    // TODO: Implement degree calculation
-    return 0;
-}
 
-Cursor Graph::cursorToNode(int nodeId) {
-    logger.log("Graph::cursorToNode");
+    long long degree = 0;
 
-    string tableName = this->sortedNodeTable->tableName;
-    string columnName = this->sortedNodeTable->columns[0]; // Node ID is in the first column
+    // OUT DEGREE
+    {
+        Table* table = this->sortedEdgeTable; // sorted by Src
+        pair<int,int> start = findFirstOccurrence(
+            table->tableName,
+            table->columns[0],  // SrcNodeID
+            nodeId
+        );
 
-    pair<int, int> location = findFirstOccurrence(tableName, columnName, nodeId);
-    // cout<< "Binary search for Node ID " << nodeId << " returned page index " << location.first << " and page pointer " << location.second << endl;
-    if (location.first != -1) {
-        cout<< "Node ID " << nodeId << " found at page index " << location.first << " and page pointer " << location.second << endl;
-        Cursor cursor(tableName, location.first);
-        cursor.pagePointer = location.second;
-        return cursor;
+        pair<int,int> end = findFirstOccurrence(
+            table->tableName,
+            table->columns[0],
+            nodeId + 1
+        );
+
+        degree += countRowsBetween(start, end, table);
     }
 
-    // If not found, return a cursor to the end of the table
-    cout << "Node ID " << nodeId << " not found. Returning cursor to end of table." << endl;
-    int lastPageIndex = this->sortedNodeTable->blockCount > 0 ? this->sortedNodeTable->blockCount - 1 : 0;
-    Cursor endCursor(tableName, lastPageIndex);
-    if(this->sortedNodeTable->blockCount > 0)
-        endCursor.pagePointer = this->sortedNodeTable->rowsPerBlockCount.back();
-    else
-        endCursor.pagePointer = 0;
-    
-    return endCursor;
+    //  IN DEGREE
+    {
+        Table* table = this->sortedReverseEdgeTable; // sorted by Dest
+        pair<int,int> start = findFirstOccurrence(
+            table->tableName,
+            table->columns[1],  // DestNodeID
+            nodeId
+        );
+
+        pair<int,int> end = findFirstOccurrence(
+            table->tableName,
+            table->columns[1],
+            nodeId + 1
+        );
+
+        degree += countRowsBetween(start, end, table);
+    }
+
+    return (int)degree;
 }
+
+Cursor Graph::cursorToNode(int nodeId)
+{
+    logger.log("Graph::cursorToNode");
+
+    Table* table = this->sortedNodeTable;
+    string tableName = table->tableName;
+
+    pair<int, int> loc = findFirstOccurrence(
+        tableName,
+        table->columns[0],  // NodeID column
+        nodeId
+    );
+
+    // If table is empty or something went wrong
+    if (loc.first == -1) {
+        logger.log("Table is empty or error in binary search");
+        Cursor endCursor(tableName, 0);
+        endCursor.pagePointer = 0;
+        return endCursor;
+    }
+
+    Cursor cursor(tableName, loc.first);
+    cursor.pagePointer = loc.second;
+    return cursor;
+}
+
 
 Cursor Graph::cursorToNeighbors(int nodeId, bool searchReverse) {
     // TODO: Implement binary search to find specific edge range
     if (searchReverse)
         return this->sortedReverseEdgeTable->getCursor();
     return this->sortedEdgeTable->getCursor();
+}
+
+long long Graph::countRowsBetween(
+    pair<int,int> start,
+    pair<int,int> end,
+    Table* table
+) {
+    logger.log("Graph::countRowsBetween");
+
+    if (table == nullptr)
+        return 0;
+
+    // Convert start to global row ID
+    long long startRowId =
+        (long long)start.first * table->maxRowsPerBlock
+        + start.second;
+
+    // Convert end to global row ID
+    long long endRowId =
+        (long long)end.first * table->maxRowsPerBlock
+        + end.second;
+
+    // Clamp to valid bounds
+    if (startRowId < 0)
+        startRowId = 0;
+
+    if (endRowId > table->rowCount)
+        endRowId = table->rowCount;
+
+    if (endRowId < startRowId)
+        return 0;
+
+    return endRowId - startRowId;
 }

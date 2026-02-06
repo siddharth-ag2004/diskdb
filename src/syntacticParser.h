@@ -15,7 +15,6 @@ enum QueryType
     JOIN,
     LIST,
     LOAD,
-    PATH,
     PRINT,
     PROJECTION,
     RENAME,
@@ -23,6 +22,8 @@ enum QueryType
     SORT,
     SOURCE,
     LOAD_GRAPH,
+    PATH,
+    DEGREE,
     UNDETERMINED,
 };
 
@@ -135,6 +136,10 @@ public:
     int pathDestNodeId = -1;
     vector<PathCondition> pathConditions;
 
+    // For DEGREE command of GRAPH
+    string degreeGraphName = "";
+    int degreeNodeId = -1;
+
     ParsedQuery();
     void clear();
 };
@@ -155,6 +160,7 @@ bool syntacticParseRENAME();
 bool syntacticParseSELECTION();
 bool syntacticParseSORT();
 bool syntacticParseSOURCE();
+bool syntacticParseDEGREE();
 
 bool isFileExists(string tableName);
 bool isQueryFile(string fileName);

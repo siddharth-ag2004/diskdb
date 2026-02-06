@@ -9,19 +9,35 @@ void GraphCatalogue::insertGraph(Graph* graph)
 
 Graph* GraphCatalogue::getGraph(string graphName, GraphType graphType)
 {
-    logger.log("GraphCatalogue::getGraph");
-    if (this->isGraph(graphName, graphType))
-        return this->graphs.at({graphName, graphType});
-    return nullptr;
+    if (graphType == UNKOWN) {
+        auto itD = graphs.find({graphName, DIRECTED});
+        if (itD != graphs.end())
+            return itD->second;
+
+        auto itU = graphs.find({graphName, UNDIRECTED});
+        if (itU != graphs.end())
+            return itU->second;
+
+        return nullptr;
+    }
+
+    auto it = graphs.find({graphName, graphType});
+    if (it == graphs.end())
+        return nullptr;
+
+    return it->second;
 }
 
 bool GraphCatalogue::isGraph(string graphName, GraphType graphType)
 {
-    logger.log("GraphCatalogue::isGraph");
-    if (this->graphs.count({graphName, graphType}))
-        return true;
-    return false;
+    if (graphType == UNKOWN) {
+        return graphs.find({graphName, DIRECTED}) != graphs.end()
+            || graphs.find({graphName, UNDIRECTED}) != graphs.end();
+    }
+
+    return graphs.find({graphName, graphType}) != graphs.end();
 }
+
 
 void GraphCatalogue::deleteGraph(string graphName, GraphType graphType)
 {

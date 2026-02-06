@@ -3,6 +3,7 @@
 ```
 #include "global.h"
 #include "graph.h"
+#include "binarySearch.h"
 
 Graph::Graph(string graphName, GraphType type) {
     logger.log("Graph::Graph");
@@ -83,7 +84,6 @@ bool Graph::unload() {
         if (tableCatalogue.isTable(name))
             tableCatalogue.deleteTable(name);
     }
-    
     return true;
 }   
 
@@ -126,8 +126,30 @@ int Graph::getDegree(int nodeId) {
 }
 
 Cursor Graph::cursorToNode(int nodeId) {
-    // TODO: Implement binary search to find specific node
-    return this->sortedNodeTable->getCursor();
+    logger.log("Graph::cursorToNode");
+
+    string tableName = this->sortedNodeTable->tableName;
+    string columnName = this->sortedNodeTable->columns[0]; // Node ID is in the first column
+
+    pair<int, int> location = findFirstOccurrence(tableName, columnName, nodeId);
+    // cout<< "Binary search for Node ID " << nodeId << " returned page index " << location.first << " and page pointer " << location.second << endl;
+    if (location.first != -1) {
+        cout<< "Node ID " << nodeId << " found at page index " << location.first << " and page pointer " << location.second << endl;
+        Cursor cursor(tableName, location.first);
+        cursor.pagePointer = location.second;
+        return cursor;
+    }
+
+    // If not found, return a cursor to the end of the table
+    cout << "Node ID " << nodeId << " not found. Returning cursor to end of table." << endl;
+    int lastPageIndex = this->sortedNodeTable->blockCount > 0 ? this->sortedNodeTable->blockCount - 1 : 0;
+    Cursor endCursor(tableName, lastPageIndex);
+    if(this->sortedNodeTable->blockCount > 0)
+        endCursor.pagePointer = this->sortedNodeTable->rowsPerBlockCount.back();
+    else
+        endCursor.pagePointer = 0;
+    
+    return endCursor;
 }
 
 Cursor Graph::cursorToNeighbors(int nodeId, bool searchReverse) {
@@ -296,6 +318,8 @@ GraphCatalogue::~GraphCatalogue()
 
 --- ./bufferManager.h ---
 ```
+#pragma once
+
 #include"page.h"
 
 /**
@@ -567,12 +591,112 @@ bool semanticParseLIST();
 bool semanticParseLOADTable();
 bool semanticParseLOADGraph();
 
+bool semanticParsePATH();
 bool semanticParsePRINT();
 bool semanticParsePROJECTION();
 bool semanticParseRENAME();
 bool semanticParseSELECTION();
 bool semanticParseSORT();
 bool semanticParseSOURCE();
+```
+
+--- ./binarySearch.cpp ---
+```
+#include "binarySearch.h"
+#include "global.h"
+#include "logger.h"
+#include "tableCatalogue.h"
+#include "bufferManager.h"
+#include "page.h"
+
+/**
+ * @brief Gets a specific row from a table by its global row ID.
+ *
+ * @param tableName The name of the table.
+ * @param rowId The global ID of the row to retrieve.
+ * @return vector<int> The row data. Returns an empty vector if not found.
+ */
+vector<int> getTableRow(string tableName, int rowId) {
+    logger.log("binarySearch::getRow");
+    Table* table = tableCatalogue.getTable(tableName);
+    if (table == nullptr || rowId < 0 || rowId >= table->rowCount) {
+        return {};
+    }
+    int pageIndex = rowId / table->maxRowsPerBlock;
+    int rowIndexInPage = rowId % table->maxRowsPerBlock;
+    
+    // Check if the calculated pageIndex is valid
+    if (pageIndex >= table->blockCount) {
+        return {};
+    }
+
+    Page page = bufferManager.getPage(tableName, pageIndex);
+    
+    // Check if the rowIndexInPage is valid for the given page
+    if (rowIndexInPage >= table->rowCount) {
+        return {};
+    }
+
+    return page.getRow(rowIndexInPage);
+}
+
+/**
+ * @brief Finds the first occurrence of a value in a sorted column of a table.
+ *
+ * @param tableName The name of the table to search in.
+ * @param columnName The name of the sorted column to search.
+ * @param value The value to search for.
+ * @return pair<int, int> A pair containing the page index and row index in page. 
+ *                        Returns {-1, -1} if the value is not found.
+ */
+pair<int, int> findFirstOccurrence(string tableName, string columnName, int value) {
+    logger.log("binarySearch::findFirstOccurrence");
+    Table* table = tableCatalogue.getTable(tableName);
+    if (table == nullptr) {
+        cout << "Table not found: " << tableName << endl;
+        return {-1, -1};
+    }
+
+    int columnIndex = table->getColumnIndex(columnName);
+    if (columnIndex == -1) {
+        cout << "Column not found: " << columnName << endl;
+        return {-1, -1};
+    }
+
+    long long int low = 0, high = table->rowCount - 1;
+    long long int resultRowId = -1;
+
+    while (low <= high) {
+        long long int mid = low + (high - low) / 2;
+        vector<int> row = getTableRow(tableName, mid);
+
+        if (row.empty()) {
+            // This might happen if the last page has fewer rows than maxRowsPerBlock.
+            // If mid is out of bounds, getRow returns empty.
+            // Let's try to search in the lower half.
+            high = mid - 1;
+            continue;
+        }
+
+        if (row[columnIndex] >= value) {
+            if (row[columnIndex] == value) {
+                resultRowId = mid;
+            }
+            high = mid - 1;
+        } else {
+            low = mid + 1;
+        }
+    }
+
+    if (resultRowId != -1) {
+        int pageIndex = resultRowId / table->maxRowsPerBlock;
+        int rowIndexInPage = resultRowId % table->maxRowsPerBlock;
+        return {pageIndex, rowIndexInPage};
+    }
+
+    return {-1, -1};
+}
+
 ```
 
 --- ./executor.h ---
@@ -708,14 +832,15 @@ enum QueryType
     JOIN,
     LIST,
     LOAD,
+    PATH,
     PRINT,
     PROJECTION,
     RENAME,
     SELECTION,
     SORT,
     SOURCE,
-    UNDETERMINED,
     LOAD_GRAPH,
+    UNDETERMINED,
 };
 
 enum BinaryOperator
@@ -750,10 +875,19 @@ enum EntityType
     UNDEFINED_ENTITY
 };
 
+
+
 class ParsedQuery
 {
 
 public:
+    struct PathCondition {
+            string attribute; 
+            char type;        
+            int value;        
+            bool isExplicit;  
+    };
+    
     QueryType queryType = UNDETERMINED;
     
     EntityType entityType = UNDEFINED_ENTITY;
@@ -811,6 +945,13 @@ public:
     string loadGraphRelationName = "";
     GraphType graphType;
 
+    // For PATH command of GRAPH
+    string pathResultGraphName = "";
+    string pathGraphName = "";
+    int pathSrcNodeId = -1;
+    int pathDestNodeId = -1;
+    vector<PathCondition> pathConditions;
+
     ParsedQuery();
     void clear();
 };
@@ -824,6 +965,7 @@ bool syntacticParseINDEX();
 bool syntacticParseJOIN();
 bool syntacticParseLIST();
 bool syntacticParseLOAD();
+bool syntacticParsePATH();
 bool syntacticParsePRINT();
 bool syntacticParsePROJECTION();
 bool syntacticParseRENAME();
@@ -875,6 +1017,20 @@ void executeCLEAR()
     tableCatalogue.deleteTable(parsedQuery.clearRelationName);
     return;
 }
+```
+
+--- ./binarySearch.h ---
+```
+#include <iostream>
+#include <vector>
+#include <string>
+#include "table.h"
+
+using namespace std;
+
+pair<int, int> findFirstOccurrence(string tableName, string columnName, int value);
+vector<int> getRow(string tableName, int rowId);
+
 ```
 
 --- ./out ---
@@ -946,6 +1102,8 @@ bool syntacticParse()
             return syntacticParseDISTINCT();
         else if (possibleQueryType == "SORT")
             return syntacticParseSORT();
+        else if (possibleQueryType == "PATH")
+            return syntacticParsePATH();
         else
         {
             cout << "SYNTAX ERROR" << endl;
@@ -1014,6 +1172,13 @@ void ParsedQuery::clear()
     this->sourceFileName = "";
 
     this->loadGraphRelationName = "";
+
+    // PATH command for GRAPH
+    this->pathResultGraphName = "";
+    this->pathGraphName = "";
+    this->pathSrcNodeId = -1;
+    this->pathDestNodeId = -1;
+    this->pathConditions.clear();
 }
 
 /**
@@ -1863,6 +2028,12 @@ void Table::externalSortCreateNewTable(string resultTableName, int columnIndex)
     resultTable->rowCount = this->rowCount;
 
     tableCatalogue.insertTable(resultTable);
+
+    for (const string &runName : runTableNames)
+    {
+        if (tableCatalogue.isTable(runName))
+            tableCatalogue.deleteTable(runName);
+    }
 }
 
 
@@ -1989,6 +2160,7 @@ bool semanticParse(){
         case LIST: return semanticParseLIST();
         case LOAD: return semanticParseLOADTable();
         case LOAD_GRAPH: return semanticParseLOADGraph();
+        case PATH: return semanticParsePATH();
         case PRINT: return semanticParsePRINT();
         case PROJECTION: return semanticParsePROJECTION();
         case RENAME: return semanticParseRENAME();
@@ -2007,7 +2179,7 @@ bool semanticParse(){
 # *****************************************************
 # Variables to control Makefile operation
 
-CXX = g++ -std=c++17
+CXX = g++ -std=c++23
 CXXFLAGS = -g -I . -fsanitize=address,undefined
 
 SRC := $(wildcard *.cpp)
@@ -2749,6 +2921,204 @@ void executePRINT()
     table->print();
     return;
 }
+
+```
+
+--- ./executors/path.cpp ---
+```
+#include "global.h"
+/**
+ * @brief File contains method to process PATH commands.
+ * 
+ * syntax:
+ * RES <- PATH <graph_name> <src_NodeID> <dest_NodeID> WHERE <conditions>
+ * 
+ */
+bool syntacticParsePATH()
+{
+    logger.log("syntacticParsePATH");
+
+    if (tokenizedQuery.size() < 6 || tokenizedQuery[1] != "<-" || tokenizedQuery[2] != "PATH")
+    {
+        cout << "SYNTAX ERROR: INVALID PATH SYNTAX" << endl;
+        return false;
+    }
+
+    parsedQuery.queryType = PATH;
+    parsedQuery.pathResultGraphName = tokenizedQuery[0];
+    parsedQuery.pathGraphName = tokenizedQuery[3];
+
+    try {
+        parsedQuery.pathSrcNodeId = stoi(tokenizedQuery[4]);
+        parsedQuery.pathDestNodeId = stoi(tokenizedQuery[5]);
+    } catch (...) {
+        cout << "SYNTAX ERROR: Source and Destination IDs must be integers" << endl;
+        return false;
+    }
+
+    if (tokenizedQuery.size() > 6)
+    {
+        if (tokenizedQuery[6] != "WHERE")
+        {
+            cout << "SYNTAX ERROR: Expected WHERE clause" << endl;
+            return false;
+        }
+
+        if (tokenizedQuery.size() == 7)
+        {
+            cout << "SYNTAX ERROR: WHERE clause cannot be empty" << endl;
+            return false;
+        }
+
+        int i = 7;
+        while (i < tokenizedQuery.size())
+        {
+            string token = tokenizedQuery[i];
+
+            if (token == "AND")
+            {
+                cout << "SYNTAX ERROR: Unexpected keyword 'AND'" << endl;
+                return false;
+            }
+
+            ParsedQuery::PathCondition condition;
+
+            size_t openParen = token.find('(');
+            size_t closeParen = token.find(')');
+
+            if (openParen == string::npos || closeParen == string::npos || 
+                closeParen < openParen || closeParen != token.length() - 1)
+            {
+                cout << "SYNTAX ERROR: Invalid condition format '" << token << "'. Ensure spaces between condition and operator." << endl;
+                return false;
+            }
+
+
+
+            condition.attribute = token.substr(0, openParen);
+            string typeStr = token.substr(openParen + 1, closeParen - openParen - 1);
+
+            if (typeStr != "N" && typeStr != "E")
+            {
+                cout << "SYNTAX ERROR: Condition type must be N or E" << endl;
+                return false;
+            }
+            condition.type = typeStr[0];
+            
+            i++; 
+
+            if (i < tokenizedQuery.size() && tokenizedQuery[i] == "==")
+            {
+                i++; 
+                
+                if (i >= tokenizedQuery.size())
+                {
+                    cout << "SYNTAX ERROR: Expected value after '=='" << endl;
+                    return false;
+                }
+                
+                string valStr = tokenizedQuery[i];
+                if (valStr != "0" && valStr != "1")
+                {
+                    cout << "SYNTAX ERROR: Condition value must be 0 or 1" << endl;
+                    return false;
+                }
+
+                condition.value = stoi(valStr);
+                condition.isExplicit = true;
+                i++; 
+            }
+            else
+            {
+                condition.value = -1; 
+                condition.isExplicit = false;
+            }
+
+            
+
+            parsedQuery.pathConditions.push_back(condition);
+
+            if (i < tokenizedQuery.size())
+            {
+                if (tokenizedQuery[i] == "AND")
+                {
+                    i++; 
+                    
+                    if (i >= tokenizedQuery.size())
+                    {
+                        cout << "SYNTAX ERROR: Query cannot end with 'AND'" << endl;
+                        return false;
+                    }
+                }
+                else
+                {
+                    cout << "SYNTAX ERROR: Expected 'AND' between conditions" << endl;
+                    return false;
+                }
+            }
+        }
+    }
+
+
+
+    return true;
+}
+
+bool semanticParsePATH()
+{
+    logger.log("semanticParsePATH");
+
+ 
+    if (graphCatalogue.isGraph(parsedQuery.pathResultGraphName, DIRECTED) || 
+        graphCatalogue.isGraph(parsedQuery.pathResultGraphName, UNDIRECTED))
+    {
+        cout << "SEMANTIC ERROR: Resultant graph already exists" << endl;
+        return false;
+    }
+
+  
+    Graph* graph = nullptr;
+    if (graphCatalogue.isGraph(parsedQuery.pathGraphName, DIRECTED))
+    {
+        graph = graphCatalogue.getGraph(parsedQuery.pathGraphName, DIRECTED);
+    }
+    else if (graphCatalogue.isGraph(parsedQuery.pathGraphName, UNDIRECTED))
+    {
+        graph = graphCatalogue.getGraph(parsedQuery.pathGraphName, UNDIRECTED);
+    }
+
+    if (graph == nullptr)
+    {
+        cout << "SEMANTIC ERROR: Graph doesn't exist" << endl;
+        return false;
+    }
+
+    for (const auto& cond : parsedQuery.pathConditions)
+    {
+        if (cond.attribute == "ANY") continue;
+
+        if (cond.type == 'N')
+        {
+            if (!graph->nodeTable->isColumn(cond.attribute))
+            {
+                cout << "SEMANTIC ERROR: Node attribute " << cond.attribute << " does not exist" << endl;
+                return false;
+            }
+        }
+        else if (cond.type == 'E')
+        {
+            if (!graph->edgeTable->isColumn(cond.attribute))
+            {
+                cout << "SEMANTIC ERROR: Edge attribute " << cond.attribute << " does not exist" << endl;
+                return false;
+            }
+        }
+    }
+
+
+    return true;
+}
+
 
 ```
 

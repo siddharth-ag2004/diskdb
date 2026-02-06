@@ -92,9 +92,25 @@ void Graph::print() {
     cout << (this->graphType == DIRECTED ? "D" : "U") << endl;
     cout << endl; 
 
-    if (this->nodeTable) this->nodeTable->print();
+    if (this->nodeTable) {
+        Cursor cursor(this->nodeTable->tableName, 0);
+        vector<int> row;
+        for (long long i = 0; i < this->nodeCount; i++) {
+            row = cursor.getNext();
+            if (row.empty()) break; 
+            this->nodeTable->writeRow(row, cout);
+        }
+    }
     cout << endl; 
-    if (this->edgeTable) this->edgeTable->print();
+    if (this->edgeTable) {
+        Cursor cursor(this->edgeTable->tableName, 0);
+        vector<int> row;
+        for (long long i = 0; i < this->edgeCount; i++) {
+            row = cursor.getNext();
+            if (row.empty()) break;
+            this->edgeTable->writeRow(row, cout);
+        }
+    }
 }
 
 void Graph::makePermanent() {

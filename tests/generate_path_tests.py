@@ -8,13 +8,13 @@ import shutil
 import itertools
 
 # Configuration
-DEFAULT_NUM_TESTS = 5
+DEFAULT_NUM_TESTS = 10
 DEFAULT_OUTPUT_DIR = "tests/cases"
-MIN_NODES = 15
-MAX_NODES = 50
-MIN_EDGES_FACTOR = 1.5 
-MAX_ATTRS = 4
-MAX_WEIGHT = 20
+MIN_NODES = 1000
+MAX_NODES = 5000
+MIN_EDGES_FACTOR = 2
+MAX_ATTRS = 8
+MAX_WEIGHT = 5000
 
 class Graph:
     def __init__(self, name, directed=True):

@@ -3,3 +3,4 @@ data/temp
 .vscode/
 *.o
 src/server
+venv

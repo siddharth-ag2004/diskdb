@@ -5,7 +5,7 @@ Here we cover the implementation of LOAD, EXPORT, PRINT, DEGREE, and PATH operat
 
 ## 2. Implementation Details
 
-We utilized the provided Table, Page, BufferManager, and Cursor classes for low-level data handling. Our work focused on the Graph class, the ExternalSort logic, and the Executors for specific commands.
+We utilized the provided Table, Page, BufferManager, and Cursor classes for low-level data handling. Most of our implementation is in the Graph class, the ExternalSort logic, and the Executors for specific commands.
 
 ### 2.1 LOAD GRAPH
 Logic:
@@ -25,7 +25,69 @@ Complexity:
 *   Time: $O(N \log N)$ where $N$ is the number of rows.
 *   Block Accesses: $2 \cdot B \cdot (1 + \lceil \log_{M-1}(B/M) \rceil)$, where $B$ is total blocks and $M$ is buffer size. While heavy on writes initially, this reduces the complexity of PATH queries from linear $O(B)$ to logarithmic/constant time.
 
-### 2.2 DEGREE
+### 2.2 EXPORT
+
+The EXPORT command is responsible for persisting temporary results (tables or graphs created during query execution) or loaded entities into the permanent /data/ directory.
+
+Implementation Logic:
+1.  Entity Identification: The executor checks the ParsedQuery to determine if the target is a TABLE or a GRAPH.
+2.  Delegation to Table/Graph Objects:
+    *   Table Export: Table::makePermanent() is called. This function:
+        *   Constructs the destination file path (../data/<Name>.csv).
+        *   Opens an output file stream (ofstream).
+        *   Writes the column headers first.
+        *   Initializes a Cursor at page 0 of the table.
+        *   Iterates through all rows using cursor.getNext(). This method transparently handles page boundaries, loading one block at a time into the buffer and evicting the previous one.
+        *   Writes each row to the CSV stream using writeRow.
+        *   Finally, deletes the temporary source file (if one existed in /data/temp/) via BufferManager::deleteFile.
+    *   Graph Export: Graph::makePermanent() delegates the operation to its constituent parts. It calls makePermanent() on the internal nodeTable and edgeTable.
+        *   Note: The system exports the original structure tables (nodeTable and edgeTable), not the sorted clustered index tables used for optimization. This ensures the exported CSVs match the input format required by the specification.
+
+Block Access Analysis:
+The operation requires a full sequential scan of the entity.
+*   Reads: $N$ blocks (where $N$ is the total number of blocks in the table/graph).
+*   Writes: 0 Block Writes (data is written directly to the OS file stream, not the Buffer Manager).
+
+### 2.3 PATH (Dijkstra's Algorithm)
+
+The PATH command determines the shortest path between two nodes subject to specific attribute constraints. We implemented Dijkstra’s Algorithm optimized for disk-based storage using Clustered Indexes and our Two-Tier Binary Search.
+
+Implementation Logic:
+1.  Condition Parsing & Execution Plans:
+    *   Attributes: The WHERE clause is parsed into PathCondition structs.
+    *   ANY(N) Handling: Before starting the search, the system retrieves the Source Node's attributes. The ANY condition is immediately resolved to a concrete equality check (e.g., Attribute_1 == 0) to ensure consistency across the path.
+    *   ANY(E) Handling: Since the first edge is unknown, the system generates branching execution plans. It runs Dijkstra assuming ANY=0 and, if necessary, again assuming ANY=1, returning the optimal valid result.
+
+2.  Dijkstra's Traversal:
+    *   Initialization: We verify the existence of Source and Destination nodes using cursorToNode.
+    *   Expansion: A Min-Heap (priority_queue) manages the frontier. To expand node $u$:
+        *   Neighbor Retrieval: We call cursorToNeighbors(u). This uses the Forward Edge Table (_Edges_Sorted_Src).
+        *   Undirected Graphs: The system effectively performs a "union" of neighbors by also searching the Reverse Edge Table (_Edges_Sorted_Dest) where $u$ appears as the destination.
+    *   Filtering:
+        *   Edge Conditions: Checked immediately against the current row in the edge table cursor.
+        *   Node Conditions: Before adding a neighbor $v$ to the queue, we verify its attributes by performing a lookup (cursorToNode(v)) in the Node Table.
+
+#### Block Access & Efficiency Analysis:
+The efficiency of PATH relies entirely on minimizing the I/O required to fetch neighbors and check node attributes.
+
+*   Neighbor Fetch Cost:
+    To find the adjacency list of $u$, we perform findFirstOccurrence on the sorted edge table.
+    *   Using the Optimized Two-Tier Binary Search, we search the *Block Space* rather than the Row Space.
+    *   Cost: $\lceil \log_2(B_E) \rceil + \lceil \text{Degree}(u) / \text{RowsPerBlock} \rceil$ block accesses.
+    *   Note: Since edges are physically clustered by Source Node, $\lceil \text{Degree}(u) / \text{RowsPerBlock} \rceil$ is typically just 1 for average degrees.
+
+*   Node Attribute Check Cost:
+    To check conditions on a neighbor $v$, we look it up in _Nodes_Sorted.
+    *   Cost: $\lceil \log_2(B_N) \rceil$ block accesses.
+
+*   Comparison:
+    Without the Two-Tier Binary Search optimization, a standard binary search over global row IDs would incur $\approx \log_2(N)$ random I/Os (jumping between pages).
+    *   With $N = 10^8$ rows and $B = 10^5$ blocks:
+        *   Standard Search: $\approx 27$ I/Os per lookup.
+        *   Two-Tier Search: $\approx 17$ I/Os per lookup.
+    *   This reduction of ~10 I/Os per node expansion massively improves the runtime for large graph traversals.
+
+### 2.4 DEGREE
 Logic:
 For a given node $u$:
 1.  Out-Degree: We perform a Binary Search on _Edges_Sorted_Src to find the first occurrence of Src_NodeID == u. We then scan sequentially until the Source ID changes.
@@ -37,31 +99,22 @@ Block Accesses:
 *   Scan: $\lceil \text{Degree}(u) / \text{RowsPerBlock} \rceil$.
 *   Total: $\approx 2 \times \log_2(B)$ blocks read. This is significantly more efficient than a linear scan of the whole table ($B$ blocks).
 
-### 2.3 PATH (Dijkstra's Algorithm)
-Logic:
-We implemented Dijkstra’s algorithm using a priority queue.
-1.  Initialization: Check if Source/Dest nodes exist using Binary Search on _Nodes_Sorted.
-2.  Traversal: To expand a node $u$:
-    *   We call cursorToNeighbors(u). This function performs a binary search on _Edges_Sorted_Src to return a cursor positioned exactly at the first edge starting from $u$.
-    *   If the graph is Undirected, we also search _Edges_Sorted_Dest to find edges where $u$ is the destination (treated as outgoing).
-3.  Condition Checking (WHERE clause):
-    *   Attributes: When an edge or node is visited, we retrieve its row. PathCondition logic checks if attributes match the query.
-    *   ANY Handling:
-        *   ANY(N): The attribute value of the Source Node is read first. The condition is converted to an explicit equality check (e.g., A1 == 0) for all subsequent nodes.
-        *   ANY(E): Since the first edge is not known upfront, the system generates execution plans. It runs Dijkstra assuming ANY=0 and again assuming ANY=1, returning the best valid path found.
 
-Block Access & Efficiency:
-*   Neighbor Retrieval: Because edges are sorted by Source, all neighbors of $u$ reside in contiguous blocks.
-    *   Cost: $\approx 1$ Random Access (Binary Search) + 1 Sequential Read (to fetch neighbors).
-*   Node Attribute Access: Checking a node condition requires fetching node details.
-    *   Cost: 1 Random Access (Binary Search on _Nodes_Sorted).
+### 2.5 PRINT
 
-### 2.4 EXPORT and PRINT
-These commands wrap the underlying Table operations.
-*   EXPORT: Calls makePermanent(), renaming the temporary page files to the required CSV format in /data.
-*   PRINT: Iterates through the tables using a Cursor and prints rows.
+The PRINT command outputs the contents of a relation or graph to standard output (cout).
 
-### 2.5 Binary Search Implementation
+Implementation Logic of Graph::print:
+*   Metadata: The system first prints the header information: NodeCount, EdgeCount, and Type (D/U), separated by newlines.
+*   Full Content Dump: Unlike tables, graphs are printed in their entirety as per the specification.
+    *   Nodes: The system iterates through nodeTable using a Cursor from $i = 0$ to nodeCount. Every row is printed.
+    *   Separator: A blank line is printed.
+    *   Edges: The system iterates through edgeTable using a separate Cursor from $i = 0$ to edgeCount. Every row is printed.
+*   Memory Efficiency: Despite potentially printing millions of lines, the Cursor abstraction ensures that only one page of the graph is in memory at any given instant. The BufferManager swaps pages automatically as the printing loop crosses block boundaries.
+
+Block Access Analysis: $B_N + B_E$ Block Reads (Sequential scan of all Node blocks and Edge blocks).
+
+### 2.6 Binary Search Implementation
 
 To support efficient DEGREE computations and PATH existence checks, we rely heavily on searching for specific keys (NodeIDs) within our sorted tables. A naive binary search over the global row index range $[0, TotalRows]$ would result in random page accesses jumping across the file, causing buffer thrashing.
 
@@ -88,7 +141,7 @@ For $10^8$ edges and 1000 edges/block:
 *   Page Search: $\log_2(10^5) \approx 17$ I/Os.
 *   Result: A savings of ~10 I/Os per search. For a complex query traversing thousands of nodes, this optimization significantly reduces total disk latency.
 
-### 2.6 External Merge Sort Implementation
+### 2.7 External Merge Sort Implementation
 
 To support the creation of Primary Index for node and Clustered Index for edges (the sorted tables required for the graph), we implemented a Two-Phase External Merge Sort. This algorithm is designed to sort datasets larger than the available buffer memory by breaking the process into sorting individual blocks followed by a merge step.
 

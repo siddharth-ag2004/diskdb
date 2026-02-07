@@ -19,7 +19,7 @@ bool semanticParseDEGREE()
     logger.log("semanticParseDEGREE");
     if (!graphCatalogue.isGraph(parsedQuery.degreeGraphName, UNKOWN))
     {
-        cout << "SEMANTIC ERROR: Graph not found" << endl;
+        cout << "SEMANTIC ERROR: Graph doesn't exist" << endl;
         return false;
     }
     return true;
@@ -31,6 +31,7 @@ void executeDEGREE()
     Graph* graph = graphCatalogue.getGraph(parsedQuery.degreeGraphName, UNKOWN);
 
     int degree = graph->getDegree(parsedQuery.degreeNodeId);
-    cout << "Degree of node " << parsedQuery.degreeNodeId << " in graph " << parsedQuery.degreeGraphName << " is: " << degree << endl;
+    if (degree != -1)
+        cout << degree << endl;
     return;
 }

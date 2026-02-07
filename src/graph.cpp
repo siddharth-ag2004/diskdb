@@ -155,6 +155,14 @@ int Graph::getDegree(int nodeId)
 {
     logger.log("Graph::getDegree");
 
+    Cursor cursor = cursorToNode(nodeId);
+    vector<int> row = cursor.getNext();
+    
+    if (row.size() == 0 || row[0] != nodeId) {
+        cout << "Node does not exist" << endl;
+        return -1;
+    }
+
     long long degree = 0;
 
     // OUT DEGREE

@@ -91,7 +91,7 @@ bool semanticParseLOADGraph()
 
     if (!isFileExists(parsedQuery.loadGraphRelationName))
     {
-        cout << "SEMANTIC ERROR: Graph files don't exist" << endl;
+        cout << "SEMANTIC ERROR: Data file doesn't exist" << endl;
         return false;
     }
 

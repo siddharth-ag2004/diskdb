@@ -59,39 +59,59 @@ pair<int, int> findFirstOccurrence(string tableName, string columnName, int valu
         return {-1, -1};
     }
 
-    long long low = 0, high = table->rowCount - 1;
+    // binary search on pages
+    int lowPage = 0;
+    int highPage = table->blockCount - 1;
+    int targetPage = -1;
 
-    while (low <= high) {
-        long long mid = low + (high - low) / 2;
-        vector<int> row = getRow(tableName, mid);
+    while (lowPage <= highPage) {
+        int midPage = lowPage + (highPage - lowPage) / 2;
 
-        if (row.empty()) {
-            high = mid - 1;
+        if (table->rowsPerBlockCount[midPage] == 0) {
+            lowPage = midPage + 1;
             continue;
         }
 
+        Page page = bufferManager.getPage(tableName, midPage);
+        int lastRowIndex = table->rowsPerBlockCount[midPage] - 1;
+        vector<int> lastRow = page.getRow(lastRowIndex);
+
+        if (lastRow[columnIndex] >= value) {
+            targetPage = midPage;
+            highPage = midPage - 1;
+        } else {
+            lowPage = midPage + 1;
+        }
+    }
+
+    // targetPage = -1 means value is greater than all values in the table
+    if (targetPage == -1) {
+        if (table->blockCount == 0) return {-1, -1}; 
+        int lastPage = table->blockCount - 1;
+        int lastPageRowCount = table->rowsPerBlockCount[lastPage];
+        return {lastPage, lastPageRowCount};
+    }
+
+    // bin Search in identified page
+    Page page = bufferManager.getPage(tableName, targetPage);
+    int rowCount = table->rowsPerBlockCount[targetPage];
+    int low = 0, high = rowCount - 1;
+    int ansRow = -1;
+
+    while (low <= high) {
+        int mid = low + (high - low) / 2;
+        vector<int> row = page.getRow(mid);
         if (row[columnIndex] >= value) {
+            ansRow = mid;
             high = mid - 1;
         } else {
             low = mid + 1;
         }
     }
 
-    if (low > table->rowCount) {
-        return {-1, -1};
+    if (ansRow != -1) {
+        return {targetPage, ansRow};
     }
 
-    // Convert global row ID → page, offset
-    int pageIndex = low / table->maxRowsPerBlock;
-    int rowIndexInPage = low % table->maxRowsPerBlock;
-
-    // Case: position is exactly after last row
-    if (low == table->rowCount) {
-        int lastPage = table->blockCount - 1;
-        int lastRowCount = table->rowsPerBlockCount[lastPage];
-
-        return {lastPage, lastRowCount};
-    }
-
-    return {pageIndex, rowIndexInPage};
+    return {targetPage, rowCount};
 }

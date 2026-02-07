@@ -327,6 +327,9 @@ While both methods incur similar search costs ($\approx 17$ I/Os), the SINK appr
 9.  Intermediate Memory: As per the project guidelines ("you may store intermediate data structures in memory"), we assume the priority_queue used in Dijkstra's algorithm and the map used for storing distances fit in main memory. The strict block access limits apply specifically to the reading of the Node and Edge data files via the BufferManager.
 10. Buffer Manager Policy: We assume the provided BufferManager correctly evicts the oldest page (FIFO) when a 3rd page is requested. Our logic relies on this behavior to enforce the strict 2-block limit during traversals and sorting.
 
+### 5.5 Miscellaneous
+11. In some cases of Syntactic errors we provide a more detailed error message.
+
 ### 5.5 Output Formatting
 11. Print Formatting: The PRINT GRAPH command output assumes a specific format where column values are separated by a comma and a space (, ), consistent with the implementation provided in the Table::writeRow function.
 

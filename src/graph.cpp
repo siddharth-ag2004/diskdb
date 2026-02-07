@@ -362,7 +362,8 @@ PathResult Graph::runDijkstra(int src, int dest, const vector<PathCondition> &co
             while (true)
             {
                 vector<int> edgeRow = edgeCursor.getNext();
-                if (edgeRow.empty())
+                // if (edgeRow.empty())
+                if (edgeRow.empty() || (searchReverse == 0 && edgeRow[0] != u ) || (searchReverse == 1 && edgeRow[1] != u))
                     break;
 
                 int rowSrc = edgeRow[0];

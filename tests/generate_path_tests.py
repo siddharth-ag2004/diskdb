@@ -10,8 +10,8 @@ import itertools
 # Configuration
 DEFAULT_NUM_TESTS = 5
 DEFAULT_OUTPUT_DIR = "tests/cases"
-MIN_NODES = 5
-MAX_NODES = 20
+MIN_NODES = 15
+MAX_NODES = 50
 MIN_EDGES_FACTOR = 1.5 
 MAX_ATTRS = 4
 MAX_WEIGHT = 20
@@ -247,7 +247,7 @@ def generate_guaranteed_condition(g, src, dest, p_nodes, p_edge_indices):
     
     # Pick some random valid conditions
     # We want a mix.
-    num_conds = random.randint(1, 3) 
+    num_conds = random.randint(5, 9) 
     
     options = []
     for c in valid_fixed_node: options.append(('N', c[1], c[0]))
@@ -286,7 +286,7 @@ def main():
         # 1. Generate Graph
         num_nodes = random.randint(MIN_NODES, MAX_NODES)
         num_edges = int(num_nodes * MIN_EDGES_FACTOR)
-        g = generate_random_graph(test_name, num_nodes, num_edges, 2, 2)
+        g = generate_random_graph(test_name, num_nodes, num_edges, 10, 10)
         g.save(args.output_dir)
         
         # 2. Find a reachable path first

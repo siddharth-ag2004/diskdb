@@ -239,7 +239,7 @@ Complexity Analysis:
 We utilized the provided Page class which implements a Fixed-Length Record design.
 
 - Structure: Header (RowCount) + Data (Vector of Integers).
-- Why Appropriate: Graph attributes and IDs are integers. Fixed-length rows allow O(1) calculation of offsets ($BlockID \times RowsPerBlock + Offset$). This is essential for the Binary Search logic used in findFirstOccurrence.
+- Why Appropriate: Graph attributes and IDs are integers. Fixed-length rows ensure that every block has a predictable structure. Most importantly, this design allows the Two-Tier Binary Search to instantly retrieve the last row of any page (the boundary value) using a calculated offset, without needing to deserialize or scan the entire page. This capability is the foundation of the $O(\log B)$ block search optimization.
 
 ### 3.2 Storage Strategy: Clustered Index vs. SINK (Secondary Index on Non-Key)
 
@@ -255,40 +255,40 @@ Comparison Scenario:
 
 The table is physically sorted by Src_NodeID.
 
-1.  Locality: All 50 edges for Node $U$ are stored sequentially.
+1.  Locality: All 50 neighbors for Node $U$ are stored physically adjacent to each other (likely in the same block).
 2.  Access:
-    - Binary Search to find the block containing the first edge ($\log_2 10^5 \approx 17$ accesses, usually cached).
-    - Read the block. All 50 edges are in this specific block.
-3.  Total I/O: 1 Data Block Read.
+    *   Search Phase: We use the Two-Tier Binary Search (Page-Level) to find the specific block containing the start of Node $U$'s edges.
+        *   Cost: $\lceil \log_2(10^5) \rceil \approx 17$ Block Reads.
+    *   Retrieval Phase: Once the target block is identified, we read it. Since the data is clustered, all 50 edges are present in this single block (or at most spanning to the immediate next block).
+        *   Cost: 1 Block Read.
+3.  Total Cost: $\approx 18$ Block Accesses (17 Search + 1 Retrieval).
 
 #### Option B: SINK (Secondary Index on Non-Key without B-Tree)
 
 A SINK structure consists of:
-
 1.  Dense Index File: Sorted pairs of <Key, Pointer_to_Indirection>.
 2.  Indirection Blocks: Buckets containing lists of RowIDs (pointers to the Heap).
 3.  Heap File: The actual edge data, unsorted.
 
 Access Steps:
-
-1.  Index Search: Binary Search the Index File to find $U$. ($\approx \log_2 (\text{IndexBlocks})$).
-2.  Indirection: Read the Indirection block to get the 50 RowIDs. (1 Block).
+1.  Index Search: Binary Search the Index File to find $U$.
+    *   Cost: $\approx \log_2 (\text{IndexBlocks}) \approx 17$ Block Reads.
+2.  Indirection: Read the Indirection block to get the 50 RowIDs.
+    *   Cost: 1 Block Read.
 3.  Data Retrieval (The Bottleneck):
-    - The 50 RowIDs point to the Heap File.
-    - Because the Heap File is unsorted (edges were inserted in arbitrary order), Edge 1 might be in Block 10, Edge 2 in Block 500, Edge 3 in Block 5000.
-    - In the worst case, this requires 50 distinct Block Reads.
-    - With a Buffer Manager size of 2, this causes massive thrashing.
+    *   The 50 RowIDs point to specific locations in the Heap File.
+    *   Because the Heap File is unsorted (edges were inserted in arbitrary order), Edge 1 might be in Block 10, Edge 2 in Block 500, etc.
+    *   Cost: In the worst case, this requires 50 distinct Block Reads.
+    *   With a Buffer Manager size of 2, this causes massive thrashing as no blocks are retained.
 
 #### Justification Conclusion
 
-For graph traversals (Dijkstra/BFS), spatial locality is paramount.
+For graph traversals (Dijkstra/BFS), spatial locality is the deciding factor.
 
-- Clustered Index Cost: $O(1)$ block access per node expansion.
-- SINK Cost: $O(Degree)$ block accesses per node expansion.
+*   Clustered Index Retrieval: $O(1)$ sequential block access per node expansion (after search).
+*   SINK Retrieval: $O(Degree)$ random block accesses per node expansion (after search).
 
-Given the constraint of 2 blocks in memory, the SINK approach would result in extreme performance degradation due to disk thrashing. Therefore, the overhead of sorting during LOAD is mathematically justified by the exponential speedup in PATH and DEGREE operations.
-
----
+While both methods incur similar search costs ($\approx 17$ I/Os), the SINK approach fails during the retrieval phase, potentially requiring $50\times$ more I/O operations for a node with degree 50. Given the strict constraint of 2 blocks in memory, the SINK approach would result in extreme performance degradation. Therefore, the overhead of sorting during LOAD is mathematically justified.
 
 ## 4. Error Handling
 
@@ -302,8 +302,6 @@ Given the constraint of 2 blocks in memory, the SINK approach would result in ex
     - DEGREE returns error if the node does not exist.
     - PATH verifies source/destination existence before starting Dijkstra.
     - Semantic checks ensure attributes in WHERE clauses actually exist in the schema.
-
----
 
 ## 5. Assumptions
 

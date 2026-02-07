@@ -107,7 +107,7 @@ void Graph::print()
     cout << (this->graphType == DIRECTED ? "D" : "U") << endl;
     cout << endl;
 
-    if (this->nodeTable)
+    if (this->nodeTable && this->nodeCount > 0)
     {
         Cursor cursor(this->nodeTable->tableName, 0);
         vector<int> row;
@@ -120,7 +120,7 @@ void Graph::print()
         }
     }
     cout << endl;
-    if (this->edgeTable)
+    if (this->edgeTable && this->edgeCount > 0)
     {
         Cursor cursor(this->edgeTable->tableName, 0);
         vector<int> row;

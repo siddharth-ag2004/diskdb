@@ -335,6 +335,15 @@ PathResult Graph::runDijkstra(int src, int dest, const vector<PathCondition> &co
         return {false, 0, {}, {}};
     }
 
+    // Check destination Node
+    Cursor destC = cursorToNode(dest);
+    vector<int> destRow = destC.getNext();
+    if (destRow.empty() || destRow[0] != dest || !checkConditions(destRow, nodeTable->columns, conditions, 'N'))
+    {
+        return {false, 0, {}, {}};
+    }
+
+
     PathResult result;
     result.found = false;
 
@@ -349,13 +358,6 @@ PathResult Graph::runDijkstra(int src, int dest, const vector<PathCondition> &co
 
         if (u == dest)
         {
-            // Check Dest Conditions
-            Cursor destC = cursorToNode(dest);
-            vector<int> destRow = destC.getNext();
-            if (destRow.empty() || destRow[0] != dest || !checkConditions(destRow, nodeTable->columns, conditions, 'N'))
-            {
-                continue;
-            }
             result.found = true;
             result.totalWeight = d;
             break;

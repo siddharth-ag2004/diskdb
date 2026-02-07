@@ -327,10 +327,13 @@ PathResult Graph::runDijkstra(int src, int dest, const vector<PathCondition> &co
     pq.push({src, 0});
     dist[src] = 0;
 
+    auto nodeColumns = nodeTable->columns;
+    auto edgeColumns = edgeTable->columns;
+
     // Check Source Node
     Cursor srcC = cursorToNode(src);
     vector<int> srcRow = srcC.getNext();
-    if (srcRow.empty() || srcRow[0] != src || !checkConditions(srcRow, nodeTable->columns, conditions, 'N'))
+    if (srcRow.empty() || srcRow[0] != src || !checkConditions(srcRow, nodeColumns, conditions, 'N'))
     {
         return {false, 0, {}, {}};
     }
@@ -338,10 +341,11 @@ PathResult Graph::runDijkstra(int src, int dest, const vector<PathCondition> &co
     // Check destination Node
     Cursor destC = cursorToNode(dest);
     vector<int> destRow = destC.getNext();
-    if (destRow.empty() || destRow[0] != dest || !checkConditions(destRow, nodeTable->columns, conditions, 'N'))
+    if (destRow.empty() || destRow[0] != dest || !checkConditions(destRow, nodeColumns, conditions, 'N'))
     {
         return {false, 0, {}, {}};
     }
+
 
 
     PathResult result;
@@ -394,7 +398,7 @@ PathResult Graph::runDijkstra(int src, int dest, const vector<PathCondition> &co
                     v = rowSrc;
                 }
 
-                if (!checkConditions(edgeRow, edgeTable->columns, conditions, 'E'))
+                if (!checkConditions(edgeRow, edgeColumns, conditions, 'E'))
                     continue;
 
                 if (dist.find(v) == dist.end() || d + weight < dist[v])
@@ -403,7 +407,7 @@ PathResult Graph::runDijkstra(int src, int dest, const vector<PathCondition> &co
                     {
                         Cursor nodeC = cursorToNode(v);
                         vector<int> nodeRow = nodeC.getNext();
-                        if (nodeRow.empty() || nodeRow[0] != v || !checkConditions(nodeRow, nodeTable->columns, conditions, 'N'))
+                        if (nodeRow.empty() || nodeRow[0] != v || !checkConditions(nodeRow, nodeColumns, conditions, 'N'))
                             continue;
                     }
                     dist[v] = d + weight;

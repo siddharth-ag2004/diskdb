@@ -61,7 +61,79 @@ These commands wrap the underlying Table operations.
 *   EXPORT: Calls makePermanent(), renaming the temporary page files to the required CSV format in /data.
 *   PRINT: Iterates through the tables using a Cursor and prints rows.
 
----
+### 2.5 Binary Search Implementation
+
+To support efficient DEGREE computations and PATH existence checks, we rely heavily on searching for specific keys (NodeIDs) within our sorted tables. A naive binary search over the global row index range $[0, TotalRows]$ would result in random page accesses jumping across the file, causing buffer thrashing.
+
+Instead, we implemented a Two-Tier Binary Search: first searching the Block Space, then searching the Row Space.
+
+Since the tables (_Nodes_Sorted, _Edges_Sorted_Src, etc.) are physically sorted, the last row of any page $P_i$ acts as a separator for $P_{i+1}$.
+1.  Phase 1 (Page Search): We perform a binary search on the page indices $[0, BlockCount-1]$. For a middle page midPage, we fetch the last row.
+    *   If LastRow[Col] >= Target, the target value might be in this page (or an earlier one). We record this page as a candidate and move High = mid - 1.
+    *   If LastRow[Col] < Target, the target must be in a later page. We move Low = mid + 1.
+2.  Phase 2 (Row Search): Once the specific TargetPage is identified, we load it into memory and perform a standard in-memory binary search on the rows within that single page to find the exact index.
+
+#### Minimizing Block Accesses:
+Let $N$ be the total number of rows and $R$ be the rows per block. The total blocks $B = N/R$.
+
+*   Global Binary Search: Searching purely by row index requires $\lceil \log_2 N \rceil$ accesses. In the worst case, every jump lands on a different page, resulting in $\approx \log_2 N$ disk I/Os.
+*   Two-Tier Search:
+    *   We search the pages: $\lceil \log_2 B \rceil$ disk I/Os.
+    *   We search the rows: $0$ additional disk I/Os (the target page is already in the buffer).
+    *   Total I/O: $\log_2 (N/R) = \log_2 N - \log_2 R$.
+
+Example:
+For $10^8$ edges and 1000 edges/block:
+*   Global Search: $\log_2(10^8) \approx 27$ I/Os.
+*   Page Search: $\log_2(10^5) \approx 17$ I/Os.
+*   Result: A savings of ~10 I/Os per search. For a complex query traversing thousands of nodes, this optimization significantly reduces total disk latency.
+
+### 2.6 External Merge Sort Implementation
+
+To support the creation of Primary Index for node and Clustered Index for edges (the sorted tables required for the graph), we implemented a Two-Phase External Merge Sort. This algorithm is designed to sort datasets larger than the available buffer memory by breaking the process into sorting individual blocks followed by a merge step.
+
+The implementation in Table::externalSortCreateNewTable strictly adheres to the constraint of having a maximum of 2 blocks loaded in the BufferManager at any time.
+
+#### Phase 1: Sorted Run Generation
+In this phase, we iterate through the source table one block at a time to create initial sorted "runs".
+
+Logic:
+1.  Iterative Loading: The algorithm loops through the source table pages (pageIdx = 0 to blockCount).
+2.  In-Memory Sort:
+    *   A single page is requested via bufferManager.getPage().
+    *   The rows are extracted into a standard C++ vector (rows).
+    *   We use std::sort with a custom lambda comparator to sort these rows based on the target columnIndex (e.g., Src_NodeID).
+3.  Run Writing:
+    *   The sorted rows are written immediately to a new temporary table (a "run") named _run_X.
+    *   Each run consists of exactly one sorted block.
+
+Memory Compliance:
+During this phase, exactly one source page is active in the buffer pool. The write operation utilizes the second available slot in the buffer pool (if needed) or flushes the source page. This ensures we never exceed the 2-block limit.
+
+#### Phase 2: K-Way Merge
+In this phase, we merge all the 1-block sorted runs created in Phase 1 into a single final sorted table.
+
+Logic:
+1.  Cursor Initialization: We instantiate a Cursor for every run table generated in Phase 1.
+2.  Min-Heap (Priority Queue): We utilize a Min-Heap (priority_queue) to store the current smallest row from each of the $K$ runs. The heap stores {SortKey, RowData, RunIndex}.
+3.  Merge Process:
+    *   Initially, the first row from every cursor is pushed into the heap.
+    *   In a loop, we extract the minimum element (the "winner") from the heap and add it to an output buffer (outputRows) in main memory.
+    *   We advance the cursor of the "winner" run (runCursors[node.runIndex].getNext()) to fetch the next row from that specific run and push it into the heap.
+4.  Output Flushing: When outputRows fills a block (reaches maxRowsPerBlock), we request the BufferManager to write this page to the final result table.
+
+Memory Compliance:
+Although we are merging $K$ runs (where $K$ could be $>2$), the system does not load $K$ pages simultaneously.
+*   On-Demand Loading: The Cursor object is lightweight and does not hold the physical page. It only requests a page from the BufferManager when getNext() is called.
+*   Buffer Swapping: Since we interpret the rows sequentially, the BufferManager (using FIFO policy) evicts the least recently used block to load the block required by the current cursor.
+*   Result Writing: The output is accumulated in a memory vector (allowed by assumptions) and written to disk as a single block write only when full.
+
+Complexity Analysis:
+*   I/O Cost:
+    *   Phase 1: Read $N$ blocks, Write $N$ blocks.
+    *   Phase 2: Read $N$ blocks (via cursors), Write $N$ blocks (final result).
+    *   Total: $4N$ Block I/Os.
+    *   This linear I/O complexity $O(N)$ is optimal for external sorting given the strict memory constraints.
 
 ## 3. Page Design and Storage Justification
 

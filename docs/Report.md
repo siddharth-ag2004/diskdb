@@ -30,6 +30,8 @@ Complexity:
 - Time: $O(N \log N)$ where $N$ is the number of rows.
 - Block Accesses: $2 \cdot B \cdot (1 + \lceil \log_{M-1}(B/M) \rceil)$, where $B$ is total blocks and $M$ is buffer size. While heavy on writes initially, this reduces the complexity of PATH queries from linear $O(B)$ to logarithmic/constant time.
 
+Note: We keep the unsorted nodeTable and edgeTable in the catalogue specifically for the PRINT and EXPORT commands, while the sorted versions are used for PATH and DEGREE.
+
 ### 2.2 EXPORT
 
 The EXPORT command is responsible for persisting temporary results (tables or graphs created during query execution) or loaded entities into the permanent /data/ directory.
@@ -64,7 +66,7 @@ Implementation Logic:
 1.  Condition Parsing & Execution Plans:
     - Attributes: The WHERE clause is parsed into PathCondition structs.
     - ANY(N) Handling: Before starting the search, the system retrieves the Source Node's attributes. The ANY condition is immediately resolved to a concrete equality check (e.g., Attribute_1 == 0) to ensure consistency across the path.
-    - ANY(E) Handling: Since the first edge is unknown, the system generates branching execution plans. It runs Dijkstra assuming ANY=0 and, if necessary, again assuming ANY=1, returning the optimal valid result.
+    - ANY(E) Handling: Since the first edge is unknown, the system generates branching execution plans. It runs Dijkstra assuming ANY=0 and, if necessary, again assuming ANY=1, returning the optimal valid result. ANY(E) creates a disjunction over valid attribute values which is solved by running Dijkstra multiple times (once for each valid assumption) and taking the minimum.
 
 2.  Dijkstra's Traversal:
     - Initialization: We verify the existence of Source and Destination nodes using cursorToNode.
@@ -335,7 +337,7 @@ Sidharth Agarwal (2022101062):
 - Designed and implemented initial semantic and syntactic parsing templates for graph operations.
 - Implemented DEGREE command logic for both directed and undirected graphs.
 - Implemented binary search on rows.
-- Testing using the project PDF specifications, covering edge cases such as empty WHERE clauses, conflicting conditions, invalid node IDs, and correctness of TRUE/FALSE outputs with path weights 
+- Testing of sorting correctness and degree verification on large datasets.
 
 Shreyansh (2022111002):
 - Implemented the PATH command, including least-weighted path computation under multiple constraints.

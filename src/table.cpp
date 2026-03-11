@@ -355,125 +355,172 @@ void Table::externalSortCreateNewTable(string resultTableName, int columnIndex)
 {
     logger.log("Table::externalSortCreateNewTable");
 
-    Table *resultTable = new Table(resultTableName, this->columns);
+    int nB = BLOCK_COUNT;
+    int mergeDegree = nB - 1;                 // can merge nB-1 runs at once
 
-    vector<string> runTableNames;
+    vector<string> runNames;
 
-    // Phase 1: CREATE SORTED RUNS (page-wise sort)
-    for (uint pageIdx = 0; pageIdx < this->blockCount; pageIdx++)
+
+    //   PHASE 1: CREATE INITIAL RUNS
+
+    int currentPage = 0;
+    int totalPages = this->blockCount;
+    int runCounter = 0;
+
+    while (currentPage < totalPages)
     {
-        Page page = bufferManager.getPage(this->tableName, pageIdx);
-
         vector<vector<int>> rows;
-        int r = 0;
-        while (true)
+
+        int pagesLoaded = 0;
+
+        // Load up to nB pages into memory
+        while (pagesLoaded < nB && currentPage < totalPages)
         {
-            vector<int> row = page.getRow(r);
-            if (row.empty())
-                break;
-            rows.push_back(row);
-            r++;
+            Page page = bufferManager.getPage(this->tableName, currentPage);
+
+            for (int r = 0; r < this->rowsPerBlockCount[currentPage]; r++)
+                rows.push_back(page.getRow(r));
+
+            currentPage++;
+            pagesLoaded++;
         }
 
-        // Sort by the specific column index
+        // Internal sort
         sort(rows.begin(), rows.end(),
-             [columnIndex](const vector<int> &a, const vector<int> &b)
-             {
-                 return a[columnIndex] < b[columnIndex];
-             });
+            [columnIndex](const vector<int>& a, const vector<int>& b)
+            {
+                return a[columnIndex] < b[columnIndex];
+            });
 
-        // Write sorted run (single page per run)
-        string runName = resultTableName + "_run_" + to_string(pageIdx);
+        // Write sorted run
+        string runName = resultTableName + "_run_" + to_string(runCounter++);
+        Table* runTable = new Table(runName, this->columns);
 
-        // Create table metadata for the run
-        Table *runTable = new Table(runName, this->columns);
-        runTable->blockCount = 1;
-        runTable->rowCount = rows.size();
-        runTable->rowsPerBlockCount.push_back(rows.size());
+        int outputPageIndex = 0;
+        int rowPtr = 0;
 
-        // Write page
-        bufferManager.writePage(runName, 0, rows, rows.size());
-
-        // Register run table
-        tableCatalogue.insertTable(runTable);
-
-        runTableNames.push_back(runName);
-
-    }
-
-    // K-Way merge using min-heap
-
-    int k = runTableNames.size();
-    vector<Cursor> runCursors;
-
-    for (int i = 0; i < k; i++)
-        runCursors.emplace_back(runTableNames[i], 0);
-
-    priority_queue<HeapNode, vector<HeapNode>, HeapCompare> minHeap;
-
-    for (int i = 0; i < k; i++)
-    {
-        vector<int> row = runCursors[i].getNext();
-        if (!row.empty())
-            minHeap.push({row[columnIndex], row, i});
-    }
-
-    vector<vector<int>> outputRows;
-    outputRows.reserve(this->maxRowsPerBlock);
-
-    int outputPageIndex = 0;
-
-    while (!minHeap.empty())
-    {
-        HeapNode node = minHeap.top();
-        minHeap.pop();
-
-        outputRows.push_back(node.row);
-
-        vector<int> nextRow = runCursors[node.runIndex].getNext();
-        if (!nextRow.empty())
-            minHeap.push({nextRow[columnIndex], nextRow, node.runIndex});
-
-        if (outputRows.size() == this->maxRowsPerBlock)
+        while (rowPtr < rows.size())
         {
-            bufferManager.writePage(
-                resultTableName,
-                outputPageIndex,
-                outputRows,
-                outputRows.size()
-            );
+            vector<vector<int>> pageRows;
 
-            resultTable->blockCount++;
-            resultTable->rowsPerBlockCount.push_back(outputRows.size());
+            for (int i = 0; i < this->maxRowsPerBlock && rowPtr < rows.size(); i++)
+                pageRows.push_back(rows[rowPtr++]);
 
-            outputRows.clear();
+            bufferManager.writePage(runName, outputPageIndex, pageRows, pageRows.size());
+
+            runTable->rowsPerBlockCount.push_back(pageRows.size());
+            runTable->blockCount++;
             outputPageIndex++;
         }
+
+        runTable->rowCount = rows.size();
+        tableCatalogue.insertTable(runTable);
+        runNames.push_back(runName);
     }
 
-    // Flush remaining rows
-    if (!outputRows.empty())
-    {
-        bufferManager.writePage(
-            resultTableName,
-            outputPageIndex,
-            outputRows,
-            outputRows.size()
-        );
+    //  PHASE 2: MULTI-PASS MERGE
 
-        resultTable->blockCount++;
-        resultTable->rowsPerBlockCount.push_back(outputRows.size());
+    int pass = 0;
+
+    while (runNames.size() > 1)
+    {
+        vector<string> newRunNames;
+        int i = 0;
+
+        while (i < runNames.size())
+        {
+            int runsToMerge = min(mergeDegree, (int)(runNames.size() - i));
+
+            vector<string> mergeGroup;
+            for (int j = 0; j < runsToMerge; j++)
+                mergeGroup.push_back(runNames[i + j]);
+
+            string mergedName = resultTableName + "_pass_" +
+                                to_string(pass) + "_run_" + to_string(i);
+
+            Table* mergedTable = new Table(mergedName, this->columns);
+
+            vector<Cursor> cursors;
+            for (auto& name : mergeGroup)
+                cursors.emplace_back(name, 0);
+
+            priority_queue<HeapNode, vector<HeapNode>, HeapCompare> minHeap;
+
+            for (int j = 0; j < cursors.size(); j++)
+            {
+                vector<int> row = cursors[j].getNext();
+                if (!row.empty())
+                    minHeap.push({row[columnIndex], row, j});
+            }
+
+            vector<vector<int>> outputRows;
+            int outputPageIndex = 0;
+
+            while (!minHeap.empty())
+            {
+                HeapNode node = minHeap.top();
+                minHeap.pop();
+
+                outputRows.push_back(node.row);
+
+                vector<int> nextRow = cursors[node.runIndex].getNext();
+                if (!nextRow.empty())
+                    minHeap.push({nextRow[columnIndex], nextRow, node.runIndex});
+
+                if (outputRows.size() == this->maxRowsPerBlock)
+                {
+                    bufferManager.writePage(
+                        mergedName,
+                        outputPageIndex,
+                        outputRows,
+                        outputRows.size()
+                    );
+
+                    mergedTable->rowsPerBlockCount.push_back(outputRows.size());
+                    mergedTable->blockCount++;
+
+                    outputRows.clear();
+                    outputPageIndex++;
+                }
+            }
+
+            if (!outputRows.empty())
+            {
+                bufferManager.writePage(
+                    mergedName,
+                    outputPageIndex,
+                    outputRows,
+                    outputRows.size()
+                );
+
+                mergedTable->rowsPerBlockCount.push_back(outputRows.size());
+                mergedTable->blockCount++;
+            }
+
+            mergedTable->rowCount = 0;
+            for (int x : mergedTable->rowsPerBlockCount)
+                mergedTable->rowCount += x;
+
+            tableCatalogue.insertTable(mergedTable);
+            newRunNames.push_back(mergedName);
+
+            i += runsToMerge;
+        }
+
+        // Delete old runs
+        for (auto& name : runNames)
+        {
+            if (tableCatalogue.isTable(name))
+                tableCatalogue.deleteTable(name);
+        }
+
+        runNames = newRunNames;
+        pass++;
     }
 
-    // Final metadata
-    resultTable->rowCount = this->rowCount;
-
-    tableCatalogue.insertTable(resultTable);
-
-    for (const string &runName : runTableNames)
+    if (!runNames.empty())
     {
-        if (tableCatalogue.isTable(runName))
-            tableCatalogue.deleteTable(runName);
+        Table* finalTable = tableCatalogue.getTable(runNames[0]);
+        finalTable->tableName = resultTableName;
     }
 }
-

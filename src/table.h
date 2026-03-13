@@ -1,6 +1,7 @@
 #pragma once
 
 #include "cursor.h"
+#include "sortingStrategy.h"
 
 enum IndexingStrategy
 {
@@ -52,7 +53,10 @@ public:
     Cursor getCursor();
     int getColumnIndex(string columnName);
     void unload();
-    void externalSortCreateNewTable(string resultTableName, int columnIndex);
+    void externalSortCreateNewTable(
+        const string& resultTableName,
+        const vector<int>& columnIndices,
+        const vector<SortingStrategy>& sortOrders);
 
     /**
  * @brief Static function that takes a vector of valued and prints them out in a

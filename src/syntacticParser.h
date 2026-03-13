@@ -2,6 +2,7 @@
 
 #include "tableCatalogue.h"
 #include "graphCatalogue.h"
+#include "sortingStrategy.h"
 
 using namespace std;
 
@@ -37,13 +38,6 @@ enum BinaryOperator
     EQUAL,
     NOT_EQUAL,
     NO_BINOP_CLAUSE
-};
-
-enum SortingStrategy
-{
-    ASC,
-    DESC,
-    NO_SORT_CLAUSE
 };
 
 enum SelectType
@@ -113,10 +107,9 @@ public:
     string selectionSecondColumnName = "";
     int selectionIntLiteral = 0;
 
-    SortingStrategy sortingStrategy = NO_SORT_CLAUSE;
-    string sortResultRelationName = "";
-    string sortColumnName = "";
     string sortRelationName = "";
+    vector<string> sortColumnNames;
+    vector<SortingStrategy> sortStrategies;
 
     string sourceFileName = "";
 

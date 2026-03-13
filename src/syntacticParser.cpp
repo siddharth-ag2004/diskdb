@@ -29,6 +29,8 @@ bool syntacticParse()
         return syntacticParseSOURCE();
     else if (possibleQueryType == "DEGREE")
         return syntacticParseDEGREE();
+    else if (possibleQueryType == "SORT")
+        return syntacticParseSORT();
     else
     {
         string resultantRelationName = possibleQueryType;
@@ -48,8 +50,8 @@ bool syntacticParse()
             return syntacticParseCROSS();
         else if (possibleQueryType == "DISTINCT")
             return syntacticParseDISTINCT();
-        else if (possibleQueryType == "SORT")
-            return syntacticParseSORT();
+        // else if (possibleQueryType == "SORT")
+        //     return syntacticParseSORT();
         else if (possibleQueryType == "PATH")
             return syntacticParsePATH();
         else
@@ -112,10 +114,9 @@ void ParsedQuery::clear()
     this->selectionSecondColumnName = "";
     this->selectionIntLiteral = 0;
 
-    this->sortingStrategy = NO_SORT_CLAUSE;
-    this->sortResultRelationName = "";
-    this->sortColumnName = "";
     this->sortRelationName = "";
+    this->sortColumnNames.clear();
+    this->sortStrategies.clear();
 
     this->sourceFileName = "";
 

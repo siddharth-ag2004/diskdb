@@ -338,30 +338,72 @@ int Table::getColumnIndex(string columnName)
 
 struct HeapNode
 {
-    int key;                 // "Sort key" value
-    vector<int> row;         // full row
-    int runIndex;            // which run it came from
+    vector<int> row;
+    int runIndex;
 };
 
 struct HeapCompare
 {
+    const vector<int>& columnIndices;
+    const vector<SortingStrategy>& sortOrders;
+
+    HeapCompare(const vector<int>& cols,
+                const vector<SortingStrategy>& orders)
+        : columnIndices(cols), sortOrders(orders) {}
+
     bool operator()(const HeapNode &a, const HeapNode &b)
     {
-        return a.key > b.key; // min-heap
+        for (size_t i = 0; i < columnIndices.size(); i++)
+        {
+            int col = columnIndices[i];
+
+            if (a.row[col] == b.row[col])
+                continue;
+
+            if (sortOrders[i] == ASC)
+                return a.row[col] > b.row[col];
+            else
+                return a.row[col] < b.row[col];
+        }
+
+        return false;
     }
 };
 
-void Table::externalSortCreateNewTable(string resultTableName, int columnIndex)
+bool compareRows(const vector<int> &a,
+    const vector<int> &b,
+    const vector<int> &columnIndices,
+    const vector<SortingStrategy> &sortOrders)
+{
+    for (int i = 0; i < columnIndices.size(); i++)
+    {
+    int col = columnIndices[i];
+
+    if (a[col] == b[col])
+    continue;
+
+    if (sortOrders[i] == ASC)
+    return a[col] < b[col];
+    else
+    return a[col] > b[col];
+    }
+
+    return false;
+}
+
+void Table::externalSortCreateNewTable(
+    const string& resultTableName,
+    const vector<int>& columnIndices,
+    const vector<SortingStrategy>& sortOrders)
 {
     logger.log("Table::externalSortCreateNewTable");
 
     int nB = BLOCK_COUNT;
-    int mergeDegree = nB - 1;                 // can merge nB-1 runs at once
+    int mergeDegree = nB - 1;
 
     vector<string> runNames;
 
-
-    //   PHASE 1: CREATE INITIAL RUNS
+    // PHASE 1: CREATE INITIAL RUNS
 
     int currentPage = 0;
     int totalPages = this->blockCount;
@@ -370,10 +412,8 @@ void Table::externalSortCreateNewTable(string resultTableName, int columnIndex)
     while (currentPage < totalPages)
     {
         vector<vector<int>> rows;
-
         int pagesLoaded = 0;
 
-        // Load up to nB pages into memory
         while (pagesLoaded < nB && currentPage < totalPages)
         {
             Page page = bufferManager.getPage(this->tableName, currentPage);
@@ -385,14 +425,13 @@ void Table::externalSortCreateNewTable(string resultTableName, int columnIndex)
             pagesLoaded++;
         }
 
-        // Internal sort
+        // internal multi-column sort
         sort(rows.begin(), rows.end(),
-            [columnIndex](const vector<int>& a, const vector<int>& b)
-            {
-                return a[columnIndex] < b[columnIndex];
-            });
+            [&](const vector<int>& a, const vector<int>& b)
+        {
+            return compareRows(a, b, columnIndices, sortOrders);
+        });
 
-        // Write sorted run
         string runName = resultTableName + "_run_" + to_string(runCounter++);
         Table* runTable = new Table(runName, this->columns);
 
@@ -418,7 +457,7 @@ void Table::externalSortCreateNewTable(string resultTableName, int columnIndex)
         runNames.push_back(runName);
     }
 
-    //  PHASE 2: MULTI-PASS MERGE
+    //  PHASE 2: MULTI PASS MERGE
 
     int pass = 0;
 
@@ -435,22 +474,28 @@ void Table::externalSortCreateNewTable(string resultTableName, int columnIndex)
             for (int j = 0; j < runsToMerge; j++)
                 mergeGroup.push_back(runNames[i + j]);
 
-            string mergedName = resultTableName + "_pass_" +
-                                to_string(pass) + "_run_" + to_string(i);
+            string mergedName = resultTableName +
+                                "_pass_" + to_string(pass) +
+                                "_run_" + to_string(i);
 
             Table* mergedTable = new Table(mergedName, this->columns);
 
             vector<Cursor> cursors;
-            for (auto& name : mergeGroup)
+            for (auto &name : mergeGroup)
                 cursors.emplace_back(name, 0);
 
-            priority_queue<HeapNode, vector<HeapNode>, HeapCompare> minHeap;
+            priority_queue<
+                HeapNode,
+                vector<HeapNode>,
+                HeapCompare
+            > minHeap(HeapCompare(columnIndices, sortOrders));
 
+            // initialize heap
             for (int j = 0; j < cursors.size(); j++)
             {
                 vector<int> row = cursors[j].getNext();
                 if (!row.empty())
-                    minHeap.push({row[columnIndex], row, j});
+                    minHeap.push({row, j});
             }
 
             vector<vector<int>> outputRows;
@@ -465,7 +510,7 @@ void Table::externalSortCreateNewTable(string resultTableName, int columnIndex)
 
                 vector<int> nextRow = cursors[node.runIndex].getNext();
                 if (!nextRow.empty())
-                    minHeap.push({nextRow[columnIndex], nextRow, node.runIndex});
+                    minHeap.push({nextRow, node.runIndex});
 
                 if (outputRows.size() == this->maxRowsPerBlock)
                 {
@@ -507,8 +552,7 @@ void Table::externalSortCreateNewTable(string resultTableName, int columnIndex)
             i += runsToMerge;
         }
 
-        // Delete old runs
-        for (auto& name : runNames)
+        for (auto &name : runNames)
         {
             if (tableCatalogue.isTable(name))
                 tableCatalogue.deleteTable(name);
@@ -517,6 +561,8 @@ void Table::externalSortCreateNewTable(string resultTableName, int columnIndex)
         runNames = newRunNames;
         pass++;
     }
+
+    // FINAL TABLE
 
     if (!runNames.empty())
     {

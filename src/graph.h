@@ -1,6 +1,7 @@
 #pragma once
 
 #include "table.h"
+#include "sortingStrategy.h"
 
 enum GraphType {
     UNDIRECTED,

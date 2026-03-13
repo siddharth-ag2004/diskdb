@@ -57,21 +57,21 @@ bool Graph::load()
     if (tableCatalogue.isTable(sortedNodeName))
         tableCatalogue.deleteTable(sortedNodeName);
 
-    this->nodeTable->externalSortCreateNewTable(sortedNodeName, 0);
+    this->nodeTable->externalSortCreateNewTable(sortedNodeName, vector<int>{0}, vector<SortingStrategy>{ASC});
     this->sortedNodeTable = tableCatalogue.getTable(sortedNodeName);
 
     string sortedEdgeName = this->graphName + "_Edges_Sorted_Src";
     if (tableCatalogue.isTable(sortedEdgeName))
         tableCatalogue.deleteTable(sortedEdgeName);
 
-    this->edgeTable->externalSortCreateNewTable(sortedEdgeName, 0);
+    this->edgeTable->externalSortCreateNewTable(sortedEdgeName, vector<int>{0}, vector<SortingStrategy>{ASC});
     this->sortedEdgeTable = tableCatalogue.getTable(sortedEdgeName);
 
     string sortedRevEdgeName = this->graphName + "_Edges_Sorted_Dest";
     if (tableCatalogue.isTable(sortedRevEdgeName))
         tableCatalogue.deleteTable(sortedRevEdgeName);
 
-    this->edgeTable->externalSortCreateNewTable(sortedRevEdgeName, 1);
+    this->edgeTable->externalSortCreateNewTable(sortedRevEdgeName, vector<int>{1}, vector<SortingStrategy>{ASC});
     this->sortedReverseEdgeTable = tableCatalogue.getTable(sortedRevEdgeName);
 
     return true;
@@ -747,19 +747,19 @@ bool Graph::findPath(string resultGraphName, int srcNodeId, int destNodeId, vect
     string sortedNodeName = resGraph->graphName + "_Nodes_Sorted";
     if (tableCatalogue.isTable(sortedNodeName))
         tableCatalogue.deleteTable(sortedNodeName);
-    resNodes->externalSortCreateNewTable(sortedNodeName, 0);
+    resNodes->externalSortCreateNewTable(sortedNodeName, vector<int>{0}, vector<SortingStrategy>{ASC});
     resGraph->sortedNodeTable = tableCatalogue.getTable(sortedNodeName);
 
     string sortedEdgeName = resGraph->graphName + "_Edges_Sorted_Src";
     if (tableCatalogue.isTable(sortedEdgeName))
         tableCatalogue.deleteTable(sortedEdgeName);
-    resEdges->externalSortCreateNewTable(sortedEdgeName, 0);
+    resEdges->externalSortCreateNewTable(sortedEdgeName, vector<int>{0}, vector<SortingStrategy>{ASC});
     resGraph->sortedEdgeTable = tableCatalogue.getTable(sortedEdgeName);
 
     string sortedRevEdgeName = resGraph->graphName + "_Edges_Sorted_Dest";
     if (tableCatalogue.isTable(sortedRevEdgeName))
         tableCatalogue.deleteTable(sortedRevEdgeName);
-    resEdges->externalSortCreateNewTable(sortedRevEdgeName, 1);
+    resEdges->externalSortCreateNewTable(sortedRevEdgeName, vector<int>{1}, vector<SortingStrategy>{ASC});
     resGraph->sortedReverseEdgeTable = tableCatalogue.getTable(sortedRevEdgeName);
 
     graphCatalogue.insertGraph(resGraph);

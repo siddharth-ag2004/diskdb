@@ -336,61 +336,6 @@ int Table::getColumnIndex(string columnName)
     }
 }
 
-struct HeapNode
-{
-    vector<int> row;
-    int runIndex;
-};
-
-struct HeapCompare
-{
-    const vector<int>& columnIndices;
-    const vector<SortingStrategy>& sortOrders;
-
-    HeapCompare(const vector<int>& cols,
-                const vector<SortingStrategy>& orders)
-        : columnIndices(cols), sortOrders(orders) {}
-
-    bool operator()(const HeapNode &a, const HeapNode &b)
-    {
-        for (size_t i = 0; i < columnIndices.size(); i++)
-        {
-            int col = columnIndices[i];
-
-            if (a.row[col] == b.row[col])
-                continue;
-
-            if (sortOrders[i] == ASC)
-                return a.row[col] > b.row[col];
-            else
-                return a.row[col] < b.row[col];
-        }
-
-        return false;
-    }
-};
-
-bool compareRows(const vector<int> &a,
-    const vector<int> &b,
-    const vector<int> &columnIndices,
-    const vector<SortingStrategy> &sortOrders)
-{
-    for (int i = 0; i < columnIndices.size(); i++)
-    {
-    int col = columnIndices[i];
-
-    if (a[col] == b[col])
-    continue;
-
-    if (sortOrders[i] == ASC)
-    return a[col] < b[col];
-    else
-    return a[col] > b[col];
-    }
-
-    return false;
-}
-
 void Table::externalSortCreateNewTable(
     const string& resultTableName,
     const vector<int>& columnIndices,
@@ -425,12 +370,10 @@ void Table::externalSortCreateNewTable(
             pagesLoaded++;
         }
 
-        // internal multi-column sort
-        sort(rows.begin(), rows.end(),
-            [&](const vector<int>& a, const vector<int>& b)
+        if (!rows.empty())
         {
-            return compareRows(a, b, columnIndices, sortOrders);
-        });
+            mergeSortRows(rows, 0, rows.size() - 1, columnIndices, sortOrders);
+        }
 
         string runName = resultTableName + "_run_" + to_string(runCounter++);
         Table* runTable = new Table(runName, this->columns);

@@ -71,6 +71,7 @@ void ParsedQuery::clear()
 {
     logger.log("ParseQuery::clear");
     this->queryType = UNDETERMINED;
+    this->entityType = UNDEFINED_ENTITY;
 
     this->clearRelationName = "";
 
@@ -93,6 +94,15 @@ void ParsedQuery::clear()
     this->joinSecondRelationName = "";
     this->joinFirstColumnName = "";
     this->joinSecondColumnName = "";
+    
+    this->joinArithmeticOperator = NO_ARITH_CLAUSE;
+    this->joinNumber = 0;
+    this->hasWhereClause = false;
+    this->whereColumnName = "";
+    this->whereOperator = NO_BINOP_CLAUSE;
+    this->whereNumber = 0;
+    this->hasProjectClause = false;
+    this->projectColumnNames.clear();
 
     this->loadRelationName = "";
 

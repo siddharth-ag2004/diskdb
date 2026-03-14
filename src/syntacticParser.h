@@ -40,6 +40,14 @@ enum BinaryOperator
     NO_BINOP_CLAUSE
 };
 
+enum ArithmeticOperator
+{
+    ADDITION,
+    SUBTRACTION,
+    NO_ARITH_CLAUSE
+};
+
+
 enum SelectType
 {
     COLUMN,
@@ -86,6 +94,15 @@ public:
     string joinSecondRelationName = "";
     string joinFirstColumnName = "";
     string joinSecondColumnName = "";
+
+    ArithmeticOperator joinArithmeticOperator = NO_ARITH_CLAUSE;
+    int joinNumber = 0;
+    bool hasWhereClause = false;
+    string whereColumnName = "";
+    BinaryOperator whereOperator = NO_BINOP_CLAUSE;
+    int whereNumber = 0;
+    bool hasProjectClause = false;
+    vector<string> projectColumnNames;
 
     string loadRelationName = "";
 

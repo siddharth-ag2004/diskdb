@@ -60,21 +60,21 @@ bool Graph::load()
     if (tableCatalogue.isTable(sortedNodeName))
         tableCatalogue.deleteTable(sortedNodeName);
 
-    this->nodeTable->externalSortCreateNewTable(sortedNodeName, 0);
+    this->nodeTable->externalSortCreateNewTable(sortedNodeName, vector<int>{0}, vector<SortingStrategy>{ASC});
     this->sortedNodeTable = tableCatalogue.getTable(sortedNodeName);
 
     string sortedEdgeName = this->graphName + "_Edges_Sorted_Src";
     if (tableCatalogue.isTable(sortedEdgeName))
         tableCatalogue.deleteTable(sortedEdgeName);
 
-    this->edgeTable->externalSortCreateNewTable(sortedEdgeName, 0);
+    this->edgeTable->externalSortCreateNewTable(sortedEdgeName, vector<int>{0}, vector<SortingStrategy>{ASC});
     this->sortedEdgeTable = tableCatalogue.getTable(sortedEdgeName);
 
     string sortedRevEdgeName = this->graphName + "_Edges_Sorted_Dest";
     if (tableCatalogue.isTable(sortedRevEdgeName))
         tableCatalogue.deleteTable(sortedRevEdgeName);
 
-    this->edgeTable->externalSortCreateNewTable(sortedRevEdgeName, 1);
+    this->edgeTable->externalSortCreateNewTable(sortedRevEdgeName, vector<int>{1}, vector<SortingStrategy>{ASC});
     this->sortedReverseEdgeTable = tableCatalogue.getTable(sortedRevEdgeName);
 
     return true;
@@ -330,13 +330,26 @@ PathResult Graph::runDijkstra(int src, int dest, const vector<PathCondition> &co
     pq.push({src, 0});
     dist[src] = 0;
 
+    auto nodeColumns = nodeTable->columns;
+    auto edgeColumns = edgeTable->columns;
+
     // Check Source Node
     Cursor srcC = cursorToNode(src);
     vector<int> srcRow = srcC.getNext();
-    if (srcRow.empty() || srcRow[0] != src || !checkConditions(srcRow, nodeTable->columns, conditions, 'N'))
+    if (srcRow.empty() || srcRow[0] != src || !checkConditions(srcRow, nodeColumns, conditions, 'N'))
     {
         return {false, 0, {}, {}};
     }
+
+    // Check destination Node
+    Cursor destC = cursorToNode(dest);
+    vector<int> destRow = destC.getNext();
+    if (destRow.empty() || destRow[0] != dest || !checkConditions(destRow, nodeColumns, conditions, 'N'))
+    {
+        return {false, 0, {}, {}};
+    }
+
+
 
     PathResult result;
     result.found = false;
@@ -352,13 +365,6 @@ PathResult Graph::runDijkstra(int src, int dest, const vector<PathCondition> &co
 
         if (u == dest)
         {
-            // Check Dest Conditions
-            Cursor destC = cursorToNode(dest);
-            vector<int> destRow = destC.getNext();
-            if (destRow.empty() || destRow[0] != dest || !checkConditions(destRow, nodeTable->columns, conditions, 'N'))
-            {
-                continue;
-            }
             result.found = true;
             result.totalWeight = d;
             break;
@@ -395,7 +401,7 @@ PathResult Graph::runDijkstra(int src, int dest, const vector<PathCondition> &co
                     v = rowSrc;
                 }
 
-                if (!checkConditions(edgeRow, edgeTable->columns, conditions, 'E'))
+                if (!checkConditions(edgeRow, edgeColumns, conditions, 'E'))
                     continue;
 
                 if (dist.find(v) == dist.end() || d + weight < dist[v])
@@ -404,7 +410,7 @@ PathResult Graph::runDijkstra(int src, int dest, const vector<PathCondition> &co
                     {
                         Cursor nodeC = cursorToNode(v);
                         vector<int> nodeRow = nodeC.getNext();
-                        if (nodeRow.empty() || nodeRow[0] != v || !checkConditions(nodeRow, nodeTable->columns, conditions, 'N'))
+                        if (nodeRow.empty() || nodeRow[0] != v || !checkConditions(nodeRow, nodeColumns, conditions, 'N'))
                             continue;
                     }
                     dist[v] = d + weight;
@@ -744,19 +750,19 @@ bool Graph::findPath(string resultGraphName, int srcNodeId, int destNodeId, vect
     string sortedNodeName = resGraph->graphName + "_Nodes_Sorted";
     if (tableCatalogue.isTable(sortedNodeName))
         tableCatalogue.deleteTable(sortedNodeName);
-    resNodes->externalSortCreateNewTable(sortedNodeName, 0);
+    resNodes->externalSortCreateNewTable(sortedNodeName, vector<int>{0}, vector<SortingStrategy>{ASC});
     resGraph->sortedNodeTable = tableCatalogue.getTable(sortedNodeName);
 
     string sortedEdgeName = resGraph->graphName + "_Edges_Sorted_Src";
     if (tableCatalogue.isTable(sortedEdgeName))
         tableCatalogue.deleteTable(sortedEdgeName);
-    resEdges->externalSortCreateNewTable(sortedEdgeName, 0);
+    resEdges->externalSortCreateNewTable(sortedEdgeName, vector<int>{0}, vector<SortingStrategy>{ASC});
     resGraph->sortedEdgeTable = tableCatalogue.getTable(sortedEdgeName);
 
     string sortedRevEdgeName = resGraph->graphName + "_Edges_Sorted_Dest";
     if (tableCatalogue.isTable(sortedRevEdgeName))
         tableCatalogue.deleteTable(sortedRevEdgeName);
-    resEdges->externalSortCreateNewTable(sortedRevEdgeName, 1);
+    resEdges->externalSortCreateNewTable(sortedRevEdgeName, vector<int>{1}, vector<SortingStrategy>{ASC});
     resGraph->sortedReverseEdgeTable = tableCatalogue.getTable(sortedRevEdgeName);
 
     graphCatalogue.insertGraph(resGraph);
@@ -770,6 +776,7 @@ bool Graph::findPath(string resultGraphName, int srcNodeId, int destNodeId, vect
 #pragma once
 
 #include "cursor.h"
+#include "sortingStrategy.h"
 
 enum IndexingStrategy
 {
@@ -821,7 +828,10 @@ public:
     Cursor getCursor();
     int getColumnIndex(string columnName);
     void unload();
-    void externalSortCreateNewTable(string resultTableName, int columnIndex);
+    void externalSortCreateNewTable(
+        const string& resultTableName,
+        const vector<int>& columnIndices,
+        const vector<SortingStrategy>& sortOrders);
 
     /**
  * @brief Static function that takes a vector of valued and prints them out in a
@@ -988,8 +998,8 @@ class BufferManager{
 
 using namespace std;
 
-float BLOCK_SIZE = 1;
-uint BLOCK_COUNT = 2;
+float BLOCK_SIZE = 0.05;
+uint BLOCK_COUNT = 3;
 uint PRINT_COUNT = 20;
 Logger logger;
 vector<string> tokenizedQuery;
@@ -1286,41 +1296,61 @@ pair<int, int> findFirstOccurrence(string tableName, string columnName, int valu
         return {-1, -1};
     }
 
-    long long low = 0, high = table->rowCount - 1;
+    // binary search on pages
+    int lowPage = 0;
+    int highPage = table->blockCount - 1;
+    int targetPage = -1;
 
-    while (low <= high) {
-        long long mid = low + (high - low) / 2;
-        vector<int> row = getRow(tableName, mid);
+    while (lowPage <= highPage) {
+        int midPage = lowPage + (highPage - lowPage) / 2;
 
-        if (row.empty()) {
-            high = mid - 1;
+        if (table->rowsPerBlockCount[midPage] == 0) {
+            lowPage = midPage + 1;
             continue;
         }
 
+        Page page = bufferManager.getPage(tableName, midPage);
+        int lastRowIndex = table->rowsPerBlockCount[midPage] - 1;
+        vector<int> lastRow = page.getRow(lastRowIndex);
+
+        if (lastRow[columnIndex] >= value) {
+            targetPage = midPage;
+            highPage = midPage - 1;
+        } else {
+            lowPage = midPage + 1;
+        }
+    }
+
+    // targetPage = -1 means value is greater than all values in the table
+    if (targetPage == -1) {
+        if (table->blockCount == 0) return {-1, -1}; 
+        int lastPage = table->blockCount - 1;
+        int lastPageRowCount = table->rowsPerBlockCount[lastPage];
+        return {lastPage, lastPageRowCount};
+    }
+
+    // bin Search in identified page
+    Page page = bufferManager.getPage(tableName, targetPage);
+    int rowCount = table->rowsPerBlockCount[targetPage];
+    int low = 0, high = rowCount - 1;
+    int ansRow = -1;
+
+    while (low <= high) {
+        int mid = low + (high - low) / 2;
+        vector<int> row = page.getRow(mid);
         if (row[columnIndex] >= value) {
+            ansRow = mid;
             high = mid - 1;
         } else {
             low = mid + 1;
         }
     }
 
-    if (low > table->rowCount) {
-        return {-1, -1};
+    if (ansRow != -1) {
+        return {targetPage, ansRow};
     }
 
-    // Convert global row ID → page, offset
-    int pageIndex = low / table->maxRowsPerBlock;
-    int rowIndexInPage = low % table->maxRowsPerBlock;
-
-    // Case: position is exactly after last row
-    if (low == table->rowCount) {
-        int lastPage = table->blockCount - 1;
-        int lastRowCount = table->rowsPerBlockCount[lastPage];
-
-        return {lastPage, lastRowCount};
-    }
-
-    return {pageIndex, rowIndexInPage};
+    return {targetPage, rowCount};
 }
 
 ```
@@ -1448,6 +1478,7 @@ extern BufferManager bufferManager;
 
 #include "tableCatalogue.h"
 #include "graphCatalogue.h"
+#include "sortingStrategy.h"
 
 using namespace std;
 
@@ -1483,13 +1514,6 @@ enum BinaryOperator
     EQUAL,
     NOT_EQUAL,
     NO_BINOP_CLAUSE
-};
-
-enum SortingStrategy
-{
-    ASC,
-    DESC,
-    NO_SORT_CLAUSE
 };
 
 enum SelectType
@@ -1559,10 +1583,9 @@ public:
     string selectionSecondColumnName = "";
     int selectionIntLiteral = 0;
 
-    SortingStrategy sortingStrategy = NO_SORT_CLAUSE;
-    string sortResultRelationName = "";
-    string sortColumnName = "";
     string sortRelationName = "";
+    vector<string> sortColumnNames;
+    vector<SortingStrategy> sortStrategies;
 
     string sourceFileName = "";
 
@@ -1713,6 +1736,8 @@ bool syntacticParse()
         return syntacticParseSOURCE();
     else if (possibleQueryType == "DEGREE")
         return syntacticParseDEGREE();
+    else if (possibleQueryType == "SORT")
+        return syntacticParseSORT();
     else
     {
         string resultantRelationName = possibleQueryType;
@@ -1732,8 +1757,8 @@ bool syntacticParse()
             return syntacticParseCROSS();
         else if (possibleQueryType == "DISTINCT")
             return syntacticParseDISTINCT();
-        else if (possibleQueryType == "SORT")
-            return syntacticParseSORT();
+        // else if (possibleQueryType == "SORT")
+        //     return syntacticParseSORT();
         else if (possibleQueryType == "PATH")
             return syntacticParsePATH();
         else
@@ -1796,10 +1821,9 @@ void ParsedQuery::clear()
     this->selectionSecondColumnName = "";
     this->selectionIntLiteral = 0;
 
-    this->sortingStrategy = NO_SORT_CLAUSE;
-    this->sortResultRelationName = "";
-    this->sortColumnName = "";
     this->sortRelationName = "";
+    this->sortColumnNames.clear();
+    this->sortStrategies.clear();
 
     this->sourceFileName = "";
 
@@ -1867,6 +1891,7 @@ bool isQueryFile(string fileName){
 #pragma once
 
 #include "table.h"
+#include "sortingStrategy.h"
 
 enum GraphType {
     UNDIRECTED,
@@ -2562,146 +2587,238 @@ int Table::getColumnIndex(string columnName)
 
 struct HeapNode
 {
-    int key;                 // "Sort key" value
-    vector<int> row;         // full row
-    int runIndex;            // which run it came from
+    vector<int> row;
+    int runIndex;
 };
 
 struct HeapCompare
 {
+    const vector<int>& columnIndices;
+    const vector<SortingStrategy>& sortOrders;
+
+    HeapCompare(const vector<int>& cols,
+                const vector<SortingStrategy>& orders)
+        : columnIndices(cols), sortOrders(orders) {}
+
     bool operator()(const HeapNode &a, const HeapNode &b)
     {
-        return a.key > b.key; // min-heap
+        for (size_t i = 0; i < columnIndices.size(); i++)
+        {
+            int col = columnIndices[i];
+
+            if (a.row[col] == b.row[col])
+                continue;
+
+            if (sortOrders[i] == ASC)
+                return a.row[col] > b.row[col];
+            else
+                return a.row[col] < b.row[col];
+        }
+
+        return false;
     }
 };
 
-void Table::externalSortCreateNewTable(string resultTableName, int columnIndex)
+bool compareRows(const vector<int> &a,
+    const vector<int> &b,
+    const vector<int> &columnIndices,
+    const vector<SortingStrategy> &sortOrders)
+{
+    for (int i = 0; i < columnIndices.size(); i++)
+    {
+    int col = columnIndices[i];
+
+    if (a[col] == b[col])
+    continue;
+
+    if (sortOrders[i] == ASC)
+    return a[col] < b[col];
+    else
+    return a[col] > b[col];
+    }
+
+    return false;
+}
+
+void Table::externalSortCreateNewTable(
+    const string& resultTableName,
+    const vector<int>& columnIndices,
+    const vector<SortingStrategy>& sortOrders)
 {
     logger.log("Table::externalSortCreateNewTable");
 
-    Table *resultTable = new Table(resultTableName, this->columns);
+    int nB = BLOCK_COUNT;
+    int mergeDegree = nB - 1;
 
-    vector<string> runTableNames;
+    vector<string> runNames;
 
-    // Phase 1: CREATE SORTED RUNS (page-wise sort)
-    for (uint pageIdx = 0; pageIdx < this->blockCount; pageIdx++)
+    // PHASE 1: CREATE INITIAL RUNS
+
+    int currentPage = 0;
+    int totalPages = this->blockCount;
+    int runCounter = 0;
+
+    while (currentPage < totalPages)
     {
-        Page page = bufferManager.getPage(this->tableName, pageIdx);
-
         vector<vector<int>> rows;
-        int r = 0;
-        while (true)
+        int pagesLoaded = 0;
+
+        while (pagesLoaded < nB && currentPage < totalPages)
         {
-            vector<int> row = page.getRow(r);
-            if (row.empty())
-                break;
-            rows.push_back(row);
-            r++;
+            Page page = bufferManager.getPage(this->tableName, currentPage);
+
+            for (int r = 0; r < this->rowsPerBlockCount[currentPage]; r++)
+                rows.push_back(page.getRow(r));
+
+            currentPage++;
+            pagesLoaded++;
         }
 
-        // Sort by the specific column index
+        // internal multi-column sort
         sort(rows.begin(), rows.end(),
-             [columnIndex](const vector<int> &a, const vector<int> &b)
-             {
-                 return a[columnIndex] < b[columnIndex];
-             });
-
-        // Write sorted run (single page per run)
-        string runName = resultTableName + "_run_" + to_string(pageIdx);
-
-        // Create table metadata for the run
-        Table *runTable = new Table(runName, this->columns);
-        runTable->blockCount = 1;
-        runTable->rowCount = rows.size();
-        runTable->rowsPerBlockCount.push_back(rows.size());
-
-        // Write page
-        bufferManager.writePage(runName, 0, rows, rows.size());
-
-        // Register run table
-        tableCatalogue.insertTable(runTable);
-
-        runTableNames.push_back(runName);
-
-    }
-
-    // K-Way merge using min-heap
-
-    int k = runTableNames.size();
-    vector<Cursor> runCursors;
-
-    for (int i = 0; i < k; i++)
-        runCursors.emplace_back(runTableNames[i], 0);
-
-    priority_queue<HeapNode, vector<HeapNode>, HeapCompare> minHeap;
-
-    for (int i = 0; i < k; i++)
-    {
-        vector<int> row = runCursors[i].getNext();
-        if (!row.empty())
-            minHeap.push({row[columnIndex], row, i});
-    }
-
-    vector<vector<int>> outputRows;
-    outputRows.reserve(this->maxRowsPerBlock);
-
-    int outputPageIndex = 0;
-
-    while (!minHeap.empty())
-    {
-        HeapNode node = minHeap.top();
-        minHeap.pop();
-
-        outputRows.push_back(node.row);
-
-        vector<int> nextRow = runCursors[node.runIndex].getNext();
-        if (!nextRow.empty())
-            minHeap.push({nextRow[columnIndex], nextRow, node.runIndex});
-
-        if (outputRows.size() == this->maxRowsPerBlock)
+            [&](const vector<int>& a, const vector<int>& b)
         {
-            bufferManager.writePage(
-                resultTableName,
-                outputPageIndex,
-                outputRows,
-                outputRows.size()
-            );
+            return compareRows(a, b, columnIndices, sortOrders);
+        });
 
-            resultTable->blockCount++;
-            resultTable->rowsPerBlockCount.push_back(outputRows.size());
+        string runName = resultTableName + "_run_" + to_string(runCounter++);
+        Table* runTable = new Table(runName, this->columns);
 
-            outputRows.clear();
+        int outputPageIndex = 0;
+        int rowPtr = 0;
+
+        while (rowPtr < rows.size())
+        {
+            vector<vector<int>> pageRows;
+
+            for (int i = 0; i < this->maxRowsPerBlock && rowPtr < rows.size(); i++)
+                pageRows.push_back(rows[rowPtr++]);
+
+            bufferManager.writePage(runName, outputPageIndex, pageRows, pageRows.size());
+
+            runTable->rowsPerBlockCount.push_back(pageRows.size());
+            runTable->blockCount++;
             outputPageIndex++;
         }
+
+        runTable->rowCount = rows.size();
+        tableCatalogue.insertTable(runTable);
+        runNames.push_back(runName);
     }
 
-    // Flush remaining rows
-    if (!outputRows.empty())
-    {
-        bufferManager.writePage(
-            resultTableName,
-            outputPageIndex,
-            outputRows,
-            outputRows.size()
-        );
+    //  PHASE 2: MULTI PASS MERGE
 
-        resultTable->blockCount++;
-        resultTable->rowsPerBlockCount.push_back(outputRows.size());
+    int pass = 0;
+
+    while (runNames.size() > 1)
+    {
+        vector<string> newRunNames;
+        int i = 0;
+
+        while (i < runNames.size())
+        {
+            int runsToMerge = min(mergeDegree, (int)(runNames.size() - i));
+
+            vector<string> mergeGroup;
+            for (int j = 0; j < runsToMerge; j++)
+                mergeGroup.push_back(runNames[i + j]);
+
+            string mergedName = resultTableName +
+                                "_pass_" + to_string(pass) +
+                                "_run_" + to_string(i);
+
+            Table* mergedTable = new Table(mergedName, this->columns);
+
+            vector<Cursor> cursors;
+            for (auto &name : mergeGroup)
+                cursors.emplace_back(name, 0);
+
+            priority_queue<
+                HeapNode,
+                vector<HeapNode>,
+                HeapCompare
+            > minHeap(HeapCompare(columnIndices, sortOrders));
+
+            // initialize heap
+            for (int j = 0; j < cursors.size(); j++)
+            {
+                vector<int> row = cursors[j].getNext();
+                if (!row.empty())
+                    minHeap.push({row, j});
+            }
+
+            vector<vector<int>> outputRows;
+            int outputPageIndex = 0;
+
+            while (!minHeap.empty())
+            {
+                HeapNode node = minHeap.top();
+                minHeap.pop();
+
+                outputRows.push_back(node.row);
+
+                vector<int> nextRow = cursors[node.runIndex].getNext();
+                if (!nextRow.empty())
+                    minHeap.push({nextRow, node.runIndex});
+
+                if (outputRows.size() == this->maxRowsPerBlock)
+                {
+                    bufferManager.writePage(
+                        mergedName,
+                        outputPageIndex,
+                        outputRows,
+                        outputRows.size()
+                    );
+
+                    mergedTable->rowsPerBlockCount.push_back(outputRows.size());
+                    mergedTable->blockCount++;
+
+                    outputRows.clear();
+                    outputPageIndex++;
+                }
+            }
+
+            if (!outputRows.empty())
+            {
+                bufferManager.writePage(
+                    mergedName,
+                    outputPageIndex,
+                    outputRows,
+                    outputRows.size()
+                );
+
+                mergedTable->rowsPerBlockCount.push_back(outputRows.size());
+                mergedTable->blockCount++;
+            }
+
+            mergedTable->rowCount = 0;
+            for (int x : mergedTable->rowsPerBlockCount)
+                mergedTable->rowCount += x;
+
+            tableCatalogue.insertTable(mergedTable);
+            newRunNames.push_back(mergedName);
+
+            i += runsToMerge;
+        }
+
+        for (auto &name : runNames)
+        {
+            if (tableCatalogue.isTable(name))
+                tableCatalogue.deleteTable(name);
+        }
+
+        runNames = newRunNames;
+        pass++;
     }
 
-    // Final metadata
-    resultTable->rowCount = this->rowCount;
+    // FINAL TABLE
 
-    tableCatalogue.insertTable(resultTable);
-
-    for (const string &runName : runTableNames)
+    if (!runNames.empty())
     {
-        if (tableCatalogue.isTable(runName))
-            tableCatalogue.deleteTable(runName);
+        Table* finalTable = tableCatalogue.getTable(runNames[0]);
+        finalTable->tableName = resultTableName;
     }
 }
-
-
 ```
 
 --- ./page.cpp ---
@@ -2847,7 +2964,7 @@ bool semanticParse(){
 # Variables to control Makefile operation
 
 CXX = g++ -std=c++23
-CXXFLAGS = -g -I . -fsanitize=address,undefined
+CXXFLAGS = -g -I . -o2
 
 SRC := $(wildcard *.cpp)
 OBJS = $(SRC:.cpp=.o)
@@ -2876,6 +2993,18 @@ clean:
 
 $(EXEC_DIR)/%.o: $(EXEC_DIR)/.cpp global.h
 
+```
+
+--- ./sortingStrategy.h ---
+```
+#pragma once
+
+enum SortingStrategy
+{
+    ASC,
+    DESC,
+    NO_SORT_CLAUSE
+};
 ```
 
 --- ./tableCatalogue.cpp ---
@@ -3143,61 +3272,135 @@ void executeCROSS()
  * 
  * sorting_order = ASC | DESC 
  */
-bool syntacticParseSORT(){
+bool syntacticParseSORT() {
     logger.log("syntacticParseSORT");
-    if(tokenizedQuery.size()!= 8 || tokenizedQuery[4] != "BY" || tokenizedQuery[6] != "IN"){
+
+    if(tokenizedQuery.size() < 6)
+    {
         cout<<"SYNTAX ERROR"<<endl;
         return false;
     }
+
+    if(tokenizedQuery[0] != "SORT")
+    {
+        cout<<"SYNTAX ERROR"<<endl;
+        return false;
+    }
+
     parsedQuery.queryType = SORT;
-    parsedQuery.sortResultRelationName = tokenizedQuery[0];
-    parsedQuery.sortRelationName = tokenizedQuery[3];
-    parsedQuery.sortColumnName = tokenizedQuery[5];
-    string sortingStrategy = tokenizedQuery[7];
-    if(sortingStrategy == "ASC")
-        parsedQuery.sortingStrategy = ASC;
-    else if(sortingStrategy == "DESC")
-        parsedQuery.sortingStrategy = DESC;
-    else{
+    parsedQuery.sortRelationName = tokenizedQuery[1];
+
+    if(tokenizedQuery[2] != "BY")
+    {
         cout<<"SYNTAX ERROR"<<endl;
         return false;
     }
+
+    int i = 3;
+
+    vector<string> columns;
+
+    while(i < tokenizedQuery.size() && tokenizedQuery[i] != "IN")
+    {
+        if(tokenizedQuery[i] == ",")
+        {
+            i++;
+            continue;
+        }
+
+        columns.push_back(tokenizedQuery[i]);
+        i++;
+    }
+
+    if(columns.empty())
+    {
+        cout<<"SYNTAX ERROR"<<endl;
+        return false;
+    }
+
+    parsedQuery.sortColumnNames = columns;
+
+    if(i >= tokenizedQuery.size() || tokenizedQuery[i] != "IN")
+    {
+        cout<<"SYNTAX ERROR"<<endl;
+        return false;
+    }
+
+    i++;
+
+    vector<SortingStrategy> orders;
+
+    while(i < tokenizedQuery.size())
+    {
+        if(tokenizedQuery[i] == ",")
+        {
+            i++;
+            continue;
+        }
+
+        if(tokenizedQuery[i] == "ASC")
+            orders.push_back(ASC);
+        else if(tokenizedQuery[i] == "DESC")
+            orders.push_back(DESC);
+        else
+        {
+            cout<<"SYNTAX ERROR"<<endl;
+            return false;
+        }
+
+        i++;
+    }
+
+    if(columns.size() != orders.size())
+    {
+        cout<<"SYNTAX ERROR"<<endl;
+        return false;
+    }
+
+    parsedQuery.sortStrategies = orders;
+
     return true;
 }
 
-bool semanticParseSORT(){
+bool semanticParseSORT() {
     logger.log("semanticParseSORT");
 
-    if(tableCatalogue.isTable(parsedQuery.sortResultRelationName)){
-        cout<<"SEMANTIC ERROR: Resultant relation already exists"<<endl;
-        return false;
-    }
-
-    if(!tableCatalogue.isTable(parsedQuery.sortRelationName)){
+    if(!tableCatalogue.isTable(parsedQuery.sortRelationName))
+    {
         cout<<"SEMANTIC ERROR: Relation doesn't exist"<<endl;
         return false;
     }
 
-    if(!tableCatalogue.isColumnFromTable(parsedQuery.sortColumnName, parsedQuery.sortRelationName)){
-        cout<<"SEMANTIC ERROR: Column doesn't exist in relation"<<endl;
-        return false;
+    for(string column : parsedQuery.sortColumnNames)
+    {
+        if(!tableCatalogue.isColumnFromTable(column, parsedQuery.sortRelationName))
+        {
+            cout<<"SEMANTIC ERROR: Column doesn't exist in relation"<<endl;
+            return false;
+        }
     }
 
     return true;
 }
 
-void executeSORT()
-{
+void executeSORT() {
     logger.log("executeSORT");
 
-    Table *inputTable = tableCatalogue.getTable(parsedQuery.sortRelationName);
-    int columnIndex = inputTable->getColumnIndex(parsedQuery.sortColumnName);
+    Table *table = tableCatalogue.getTable(parsedQuery.sortRelationName);
 
-    inputTable->externalSortCreateNewTable(
-        parsedQuery.sortResultRelationName, columnIndex
+    vector<int> columnIndices;
+
+    for(string column : parsedQuery.sortColumnNames)
+    {
+        columnIndices.push_back(table->getColumnIndex(column));
+    }
+
+    table->externalSortCreateNewTable(
+        parsedQuery.sortRelationName,
+        columnIndices,
+        parsedQuery.sortStrategies
     );
 }
-
 ```
 
 --- ./executors/load.cpp ---

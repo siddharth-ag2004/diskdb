@@ -127,6 +127,8 @@ public:
     string sortRelationName = "";
     vector<string> sortColumnNames;
     vector<SortingStrategy> sortStrategies;
+    int sortTopCount = -1;
+    int sortBottomCount = -1;
 
     string sourceFileName = "";
 

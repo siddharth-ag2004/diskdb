@@ -334,12 +334,13 @@ int Table::getColumnIndex(string columnName)
         if (this->columns[columnCounter] == columnName)
             return columnCounter;
     }
+    return -1;
 }
 
 void Table::externalSortCreateNewTable(
     const string& resultTableName,
-    const vector<int>& columnIndices,
-    const vector<SortingStrategy>& sortOrders)
+    const vector<int> columnIndices,
+    const vector<SortingStrategy> sortOrders)
 {
     logger.log("Table::externalSortCreateNewTable");
 

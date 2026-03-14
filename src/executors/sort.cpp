@@ -64,6 +64,8 @@ bool syntacticParseSORT() {
     i++;
 
     vector<SortingStrategy> orders;
+    parsedQuery.sortTopCount = -1;
+    parsedQuery.sortBottomCount = -1;
 
     while(i < tokenizedQuery.size())
     {
@@ -74,16 +76,59 @@ bool syntacticParseSORT() {
         }
 
         if(tokenizedQuery[i] == "ASC")
+        {
             orders.push_back(ASC);
+            i++;
+        }
         else if(tokenizedQuery[i] == "DESC")
+        {
             orders.push_back(DESC);
+            i++;
+        }
+        else if(tokenizedQuery[i] == "TOP")
+        {
+            i++;
+            if(i >= tokenizedQuery.size())
+            {
+                cout<<"SYNTAX ERROR"<<endl;
+                return false;
+            }
+
+            try
+            {
+                parsedQuery.sortTopCount = stoi(tokenizedQuery[i]);
+            }
+            catch(...)
+            {
+                cout<<"SYNTAX ERROR"<<endl;
+                return false;
+            }
+            i++;
+        }
+        else if(tokenizedQuery[i] == "BOTTOM")
+        {
+            i++;
+            if(i >= tokenizedQuery.size())
+            {
+                cout<<"SYNTAX ERROR"<<endl;
+                return false;
+            }
+            try
+            {
+                parsedQuery.sortBottomCount = stoi(tokenizedQuery[i]);
+            }
+            catch(...)
+            {
+                cout<<"SYNTAX ERROR"<<endl;
+                return false;
+            }
+            i++;
+        }
         else
         {
             cout<<"SYNTAX ERROR"<<endl;
             return false;
         }
-
-        i++;
     }
 
     if(columns.size() != orders.size())

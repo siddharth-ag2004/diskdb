@@ -55,8 +55,8 @@ public:
     void unload();
     void externalSortCreateNewTable(
         const string& resultTableName,
-        const vector<int>& columnIndices,
-        const vector<SortingStrategy>& sortOrders);
+        const vector<int> columnIndices,
+        const vector<SortingStrategy> sortOrders);
 
     /**
  * @brief Static function that takes a vector of valued and prints them out in a

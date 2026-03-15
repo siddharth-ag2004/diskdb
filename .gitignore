@@ -5,3 +5,4 @@ data/temp
 src/server
 venv
 tests/cases
+data/*

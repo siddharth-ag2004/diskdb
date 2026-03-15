@@ -376,9 +376,15 @@ void Table::externalSortCreateNewTable(
         if (!rows.empty())
             mergeSortRows(rows, 0, rows.size() - 1, columnIndices, sortOrders);
 
-        string runName = resultTableName + "_run_" + to_string(runCounter++);
+        // FIX: If the entire table fits in memory, this single run IS the final result
+        string runName;
+        if (totalPages <= nB) {
+            runName = resultTableName; 
+        } else {
+            runName = resultTableName + "_run_" + to_string(runCounter++);
+        }
+        
         Table* runTable = new Table(runName, this->columns);
-
         int outputPageIndex = 0;
         int rowPtr = 0;
 

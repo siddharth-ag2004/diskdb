@@ -106,7 +106,6 @@ bool semanticParseGROUP_BY() {
     Table* table = tableCatalogue.getTable(parsedQuery.groupByRelationName);
     
     for (string attr : parsedQuery.groupByAttributes) {
-        cout<<"attr:"<<attr<<endl;
         if (!table->isColumn(attr)) {
             cout << "SEMANTIC ERROR: Group By column doesn't exist in relation" << endl;
             return false;

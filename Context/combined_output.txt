@@ -830,8 +830,10 @@ public:
     void unload();
     void externalSortCreateNewTable(
         const string& resultTableName,
-        const vector<int>& columnIndices,
-        const vector<SortingStrategy>& sortOrders);
+        const vector<int> columnIndices,
+        const vector<SortingStrategy> sortOrders,
+        int topCount = -1,
+        int bottomCount = -1);
 
     /**
  * @brief Static function that takes a vector of valued and prints them out in a
@@ -945,6 +947,119 @@ GraphCatalogue::~GraphCatalogue()
     }
 }
 
+```
+
+--- ./sortingStrategy.cpp ---
+```
+#include "sortingStrategy.h"
+
+HeapCompare::HeapCompare(
+    const vector<int>& cols,
+    const vector<SortingStrategy>& orders)
+    : columnIndices(cols), sortOrders(orders) {}
+
+bool HeapCompare::operator()(const HeapNode &a, const HeapNode &b)
+{
+    for (size_t i = 0; i < columnIndices.size(); i++)
+    {
+        int col = columnIndices[i];
+
+        if (a.row[col] == b.row[col])
+            continue;
+
+        if (sortOrders[i] == ASC)
+            return a.row[col] > b.row[col];
+        else
+            return a.row[col] < b.row[col];
+    }
+
+    return a.runIndex > b.runIndex;
+}
+
+bool compareRows(
+    const vector<int> &a,
+    const vector<int> &b,
+    const vector<int> &columnIndices,
+    const vector<SortingStrategy> &sortOrders)
+{
+    for (size_t i = 0; i < columnIndices.size(); i++)
+    {
+        int col = columnIndices[i];
+
+        if (a[col] == b[col])
+            continue;
+
+        if (sortOrders[i] == ASC)
+            return a[col] < b[col];
+        else
+            return a[col] > b[col];
+    }
+
+    return false;
+}
+
+void mergeRows(
+    vector<vector<int>> &rows,
+    int left,
+    int mid,
+    int right,
+    const vector<int> &columnIndices,
+    const vector<SortingStrategy> &sortOrders)
+{
+    int n1 = mid - left + 1;
+    int n2 = right - mid;
+
+    vector<vector<int>> L(n1);
+    vector<vector<int>> R(n2);
+
+    for (int i = 0; i < n1; i++)
+        L[i] = rows[left + i];
+
+    for (int j = 0; j < n2; j++)
+        R[j] = rows[mid + 1 + j];
+
+    int i = 0, j = 0, k = left;
+
+    while (i < n1 && j < n2)
+    {
+        if (compareRows(L[i], R[j], columnIndices, sortOrders))
+        {
+            rows[k++] = L[i++];
+        }
+        else if (compareRows(R[j], L[i], columnIndices, sortOrders))
+        {
+            rows[k++] = R[j++];
+        }
+        else
+        {
+            rows[k++] = L[i++];
+        }
+    }
+
+    while (i < n1)
+        rows[k++] = L[i++];
+
+    while (j < n2)
+        rows[k++] = R[j++];
+}
+
+void mergeSortRows(
+    vector<vector<int>> &rows,
+    int left,
+    int right,
+    const vector<int> &columnIndices,
+    const vector<SortingStrategy> &sortOrders)
+{
+    if (left >= right)
+        return;
+
+    int mid = left + (right - left) / 2;
+
+    mergeSortRows(rows, left, mid, columnIndices, sortOrders);
+    mergeSortRows(rows, mid + 1, right, columnIndices, sortOrders);
+
+    mergeRows(rows, left, mid, right, columnIndices, sortOrders);
+}
 ```
 
 --- ./bufferManager.h ---
@@ -1231,6 +1346,9 @@ bool semanticParseSELECTION();
 bool semanticParseSORT();
 bool semanticParseSOURCE();
 bool semanticParseDEGREE();
+
+// GroupBy
+bool semanticParseGROUP_BY();
 ```
 
 --- ./binarySearch.cpp ---
@@ -1381,6 +1499,7 @@ void executeSELECTION();
 void executeSORT();
 void executeSOURCE();
 void executeDEGREE();
+void executeGROUP_BY();
 
 bool evaluateBinOp(int value1, int value2, BinaryOperator binaryOperator);
 void printRowCount(int rowCount);
@@ -1502,6 +1621,7 @@ enum QueryType
     LOAD_GRAPH,
     PATH,
     DEGREE,
+    GROUP_BY,
     UNDETERMINED,
 };
 
@@ -1516,6 +1636,14 @@ enum BinaryOperator
     NO_BINOP_CLAUSE
 };
 
+enum ArithmeticOperator
+{
+    ADDITION,
+    SUBTRACTION,
+    NO_ARITH_CLAUSE
+};
+
+
 enum SelectType
 {
     COLUMN,
@@ -1528,6 +1656,26 @@ enum EntityType
     TABLE,
     GRAPH,
     UNDEFINED_ENTITY
+};
+
+
+// GroupBy 
+
+enum AggregateFunction {
+    MAX, MIN, COUNT, SUM, AVG, NO_AGG
+};
+
+struct AggregateExpression {
+    AggregateFunction func;
+    string colName;
+};
+
+struct HavingCondition {
+    AggregateExpression left;
+    BinaryOperator op;
+    bool isRightNumber;
+    int rightNumber;
+    AggregateExpression right;
 };
 
 
@@ -1563,6 +1711,15 @@ public:
     string joinFirstColumnName = "";
     string joinSecondColumnName = "";
 
+    ArithmeticOperator joinArithmeticOperator = NO_ARITH_CLAUSE;
+    int joinNumber = 0;
+    bool hasWhereClause = false;
+    string whereColumnName = "";
+    BinaryOperator whereOperator = NO_BINOP_CLAUSE;
+    int whereNumber = 0;
+    bool hasProjectClause = false;
+    vector<string> projectColumnNames;
+
     string loadRelationName = "";
 
     string printRelationName = "";
@@ -1586,6 +1743,8 @@ public:
     string sortRelationName = "";
     vector<string> sortColumnNames;
     vector<SortingStrategy> sortStrategies;
+    int sortTopCount = -1;
+    int sortBottomCount = -1;
 
     string sourceFileName = "";
 
@@ -1603,6 +1762,14 @@ public:
     // For DEGREE command of GRAPH
     string degreeGraphName = "";
     int degreeNodeId = -1;
+
+    //GroupBy 
+    vector<string> groupByResultTables;
+    vector<string> groupByAttributes;
+    string groupByRelationName;
+    HavingCondition havingCondition;
+    vector<AggregateExpression> returnAggregates;
+
 
     ParsedQuery();
     void clear();
@@ -1628,6 +1795,10 @@ bool syntacticParseDEGREE();
 
 bool isFileExists(string tableName);
 bool isQueryFile(string fileName);
+
+// GroupBy
+
+bool syntacticParseGROUP_BY(int arrowIdx);
 
 ```
 
@@ -1740,6 +1911,21 @@ bool syntacticParse()
         return syntacticParseSORT();
     else
     {
+
+        // Find the index of "<-" to support multiple resultant tables
+        int arrowIdx = -1;
+        for (int i = 0; i < tokenizedQuery.size(); i++) {
+            if (tokenizedQuery[i] == "<-") {
+                arrowIdx = i;
+                break;
+            }
+        }
+
+        // Route to GROUP BY if detected
+        if (arrowIdx > 0 && arrowIdx + 1 < tokenizedQuery.size() && tokenizedQuery[arrowIdx + 1] == "GROUP") {
+            return syntacticParseGROUP_BY(arrowIdx);
+        }
+        
         string resultantRelationName = possibleQueryType;
         if (tokenizedQuery[1] != "<-" || tokenizedQuery.size() < 3)
         {
@@ -1778,6 +1964,7 @@ void ParsedQuery::clear()
 {
     logger.log("ParseQuery::clear");
     this->queryType = UNDETERMINED;
+    this->entityType = UNDEFINED_ENTITY;
 
     this->clearRelationName = "";
 
@@ -1800,6 +1987,15 @@ void ParsedQuery::clear()
     this->joinSecondRelationName = "";
     this->joinFirstColumnName = "";
     this->joinSecondColumnName = "";
+    
+    this->joinArithmeticOperator = NO_ARITH_CLAUSE;
+    this->joinNumber = 0;
+    this->hasWhereClause = false;
+    this->whereColumnName = "";
+    this->whereOperator = NO_BINOP_CLAUSE;
+    this->whereNumber = 0;
+    this->hasProjectClause = false;
+    this->projectColumnNames.clear();
 
     this->loadRelationName = "";
 
@@ -1835,6 +2031,12 @@ void ParsedQuery::clear()
     this->pathSrcNodeId = -1;
     this->pathDestNodeId = -1;
     this->pathConditions.clear();
+
+    //GroupBy
+    this->groupByResultTables.clear();
+    this->groupByAttributes.clear();
+    this->groupByRelationName = "";
+    this->returnAggregates.clear();
 }
 
 /**
@@ -2035,6 +2237,7 @@ void executeCommand(){
         case SORT: executeSORT(); break;
         case SOURCE: executeSOURCE(); break;
         case DEGREE: executeDEGREE(); break;
+        case GROUP_BY: executeGROUP_BY(); break;
         default: cout<<"PARSING ERROR"<<endl;
     }
 
@@ -2583,67 +2786,15 @@ int Table::getColumnIndex(string columnName)
         if (this->columns[columnCounter] == columnName)
             return columnCounter;
     }
-}
-
-struct HeapNode
-{
-    vector<int> row;
-    int runIndex;
-};
-
-struct HeapCompare
-{
-    const vector<int>& columnIndices;
-    const vector<SortingStrategy>& sortOrders;
-
-    HeapCompare(const vector<int>& cols,
-                const vector<SortingStrategy>& orders)
-        : columnIndices(cols), sortOrders(orders) {}
-
-    bool operator()(const HeapNode &a, const HeapNode &b)
-    {
-        for (size_t i = 0; i < columnIndices.size(); i++)
-        {
-            int col = columnIndices[i];
-
-            if (a.row[col] == b.row[col])
-                continue;
-
-            if (sortOrders[i] == ASC)
-                return a.row[col] > b.row[col];
-            else
-                return a.row[col] < b.row[col];
-        }
-
-        return false;
-    }
-};
-
-bool compareRows(const vector<int> &a,
-    const vector<int> &b,
-    const vector<int> &columnIndices,
-    const vector<SortingStrategy> &sortOrders)
-{
-    for (int i = 0; i < columnIndices.size(); i++)
-    {
-    int col = columnIndices[i];
-
-    if (a[col] == b[col])
-    continue;
-
-    if (sortOrders[i] == ASC)
-    return a[col] < b[col];
-    else
-    return a[col] > b[col];
-    }
-
-    return false;
+    return -1;
 }
 
 void Table::externalSortCreateNewTable(
     const string& resultTableName,
-    const vector<int>& columnIndices,
-    const vector<SortingStrategy>& sortOrders)
+    const vector<int> columnIndices,
+    const vector<SortingStrategy> sortOrders,
+    int topCount,
+    int bottomCount)
 {
     logger.log("Table::externalSortCreateNewTable");
 
@@ -2674,12 +2825,8 @@ void Table::externalSortCreateNewTable(
             pagesLoaded++;
         }
 
-        // internal multi-column sort
-        sort(rows.begin(), rows.end(),
-            [&](const vector<int>& a, const vector<int>& b)
-        {
-            return compareRows(a, b, columnIndices, sortOrders);
-        });
+        if (!rows.empty())
+            mergeSortRows(rows, 0, rows.size() - 1, columnIndices, sortOrders);
 
         string runName = resultTableName + "_run_" + to_string(runCounter++);
         Table* runTable = new Table(runName, this->columns);
@@ -2706,12 +2853,14 @@ void Table::externalSortCreateNewTable(
         runNames.push_back(runName);
     }
 
-    //  PHASE 2: MULTI PASS MERGE
+    // PHASE 2: MULTI PASS MERGE
 
     int pass = 0;
 
     while (runNames.size() > 1)
     {
+        bool finalMergePass = (runNames.size() <= mergeDegree);
+
         vector<string> newRunNames;
         int i = 0;
 
@@ -2723,9 +2872,14 @@ void Table::externalSortCreateNewTable(
             for (int j = 0; j < runsToMerge; j++)
                 mergeGroup.push_back(runNames[i + j]);
 
-            string mergedName = resultTableName +
-                                "_pass_" + to_string(pass) +
-                                "_run_" + to_string(i);
+            string mergedName;
+
+            if (finalMergePass)
+                mergedName = resultTableName;
+            else
+                mergedName = resultTableName +
+                             "_pass_" + to_string(pass) +
+                             "_run_" + to_string(i);
 
             Table* mergedTable = new Table(mergedName, this->columns);
 
@@ -2796,7 +2950,9 @@ void Table::externalSortCreateNewTable(
                 mergedTable->rowCount += x;
 
             tableCatalogue.insertTable(mergedTable);
-            newRunNames.push_back(mergedName);
+
+            if (!finalMergePass)
+                newRunNames.push_back(mergedName);
 
             i += runsToMerge;
         }
@@ -2807,16 +2963,11 @@ void Table::externalSortCreateNewTable(
                 tableCatalogue.deleteTable(name);
         }
 
+        if (finalMergePass)
+            return;
+
         runNames = newRunNames;
         pass++;
-    }
-
-    // FINAL TABLE
-
-    if (!runNames.empty())
-    {
-        Table* finalTable = tableCatalogue.getTable(runNames[0]);
-        finalTable->tableName = resultTableName;
     }
 }
 ```
@@ -2951,6 +3102,7 @@ bool semanticParse(){
         case SORT: return semanticParseSORT();
         case SOURCE: return semanticParseSOURCE();
         case DEGREE: return semanticParseDEGREE();
+        case GROUP_BY: return semanticParseGROUP_BY();
         default: cout<<"SEMANTIC ERROR"<<endl;
     }
 
@@ -2999,12 +3151,56 @@ $(EXEC_DIR)/%.o: $(EXEC_DIR)/.cpp global.h
 ```
 #pragma once
 
+#include <vector>
+using namespace std;
+
 enum SortingStrategy
 {
     ASC,
     DESC,
     NO_SORT_CLAUSE
 };
+
+struct HeapNode
+{
+    vector<int> row;
+    int runIndex;
+};
+
+struct HeapCompare
+{
+    const vector<int>& columnIndices;
+    const vector<SortingStrategy>& sortOrders;
+
+    HeapCompare(const vector<int>& cols,
+                const vector<SortingStrategy>& orders);
+
+    bool operator()(const HeapNode &a, const HeapNode &b);
+};
+
+bool compareRows(
+    const vector<int> &a,
+    const vector<int> &b,
+    const vector<int> &columnIndices,
+    const vector<SortingStrategy> &sortOrders
+);
+
+void mergeRows(
+    vector<vector<int>> &rows,
+    int left,
+    int mid,
+    int right,
+    const vector<int> &columnIndices,
+    const vector<SortingStrategy> &sortOrders
+);
+
+void mergeSortRows(
+    vector<vector<int>> &rows,
+    int left,
+    int right,
+    const vector<int> &columnIndices,
+    const vector<SortingStrategy> &sortOrders
+);
 ```
 
 --- ./tableCatalogue.cpp ---
@@ -3329,6 +3525,8 @@ bool syntacticParseSORT() {
     i++;
 
     vector<SortingStrategy> orders;
+    parsedQuery.sortTopCount = -1;
+    parsedQuery.sortBottomCount = -1;
 
     while(i < tokenizedQuery.size())
     {
@@ -3339,16 +3537,59 @@ bool syntacticParseSORT() {
         }
 
         if(tokenizedQuery[i] == "ASC")
+        {
             orders.push_back(ASC);
+            i++;
+        }
         else if(tokenizedQuery[i] == "DESC")
+        {
             orders.push_back(DESC);
+            i++;
+        }
+        else if(tokenizedQuery[i] == "TOP")
+        {
+            i++;
+            if(i >= tokenizedQuery.size())
+            {
+                cout<<"SYNTAX ERROR"<<endl;
+                return false;
+            }
+
+            try
+            {
+                parsedQuery.sortTopCount = stoi(tokenizedQuery[i]);
+            }
+            catch(...)
+            {
+                cout<<"SYNTAX ERROR"<<endl;
+                return false;
+            }
+            i++;
+        }
+        else if(tokenizedQuery[i] == "BOTTOM")
+        {
+            i++;
+            if(i >= tokenizedQuery.size())
+            {
+                cout<<"SYNTAX ERROR"<<endl;
+                return false;
+            }
+            try
+            {
+                parsedQuery.sortBottomCount = stoi(tokenizedQuery[i]);
+            }
+            catch(...)
+            {
+                cout<<"SYNTAX ERROR"<<endl;
+                return false;
+            }
+            i++;
+        }
         else
         {
             cout<<"SYNTAX ERROR"<<endl;
             return false;
         }
-
-        i++;
     }
 
     if(columns.size() != orders.size())
@@ -3398,7 +3639,9 @@ void executeSORT() {
     table->externalSortCreateNewTable(
         parsedQuery.sortRelationName,
         columnIndices,
-        parsedQuery.sortStrategies
+        parsedQuery.sortStrategies,
+        parsedQuery.sortTopCount,
+        parsedQuery.sortBottomCount
     );
 }
 ```
@@ -4087,43 +4330,144 @@ void executePATH() {
 --- ./executors/join.cpp ---
 ```
 #include "global.h"
-/**
- * @brief 
- * SYNTAX: R <- JOIN relation_name1, relation_name2 ON column_name1 bin_op column_name2
- */
+#include <unordered_map>
+
 bool syntacticParseJOIN()
 {
     logger.log("syntacticParseJOIN");
-    if (tokenizedQuery.size() != 9 || tokenizedQuery[5] != "ON")
+
+    if (!tokenizedQuery.empty())
     {
-        cout << "SYNTAC ERROR" << endl;
+        string &lastToken = tokenizedQuery.back();
+        if (!lastToken.empty() && lastToken.back() == ';')
+        {
+            lastToken.pop_back();
+            if (lastToken.empty())
+                tokenizedQuery.pop_back();
+        }
+    }
+
+    int onIdx = -1, whereIdx = -1, projectIdx = -1;
+    for (int i = 0; i < tokenizedQuery.size(); i++)
+    {
+        if (tokenizedQuery[i] == "ON")
+            onIdx = i;
+        if (tokenizedQuery[i] == "WHERE")
+            whereIdx = i;
+        if (tokenizedQuery[i] == "PROJECT")
+            projectIdx = i;
+    }
+
+    if (onIdx == -1 || tokenizedQuery.size() < 6)
+    {
+        cout << "SYNTAX ERROR" << endl;
         return false;
     }
+
     parsedQuery.queryType = JOIN;
     parsedQuery.joinResultRelationName = tokenizedQuery[0];
     parsedQuery.joinFirstRelationName = tokenizedQuery[3];
     parsedQuery.joinSecondRelationName = tokenizedQuery[4];
-    parsedQuery.joinFirstColumnName = tokenizedQuery[6];
-    parsedQuery.joinSecondColumnName = tokenizedQuery[8];
 
-    string binaryOperator = tokenizedQuery[7];
-    if (binaryOperator == "<")
-        parsedQuery.joinBinaryOperator = LESS_THAN;
-    else if (binaryOperator == ">")
-        parsedQuery.joinBinaryOperator = GREATER_THAN;
-    else if (binaryOperator == ">=" || binaryOperator == "=>")
-        parsedQuery.joinBinaryOperator = GEQ;
-    else if (binaryOperator == "<=" || binaryOperator == "=<")
-        parsedQuery.joinBinaryOperator = LEQ;
-    else if (binaryOperator == "==")
-        parsedQuery.joinBinaryOperator = EQUAL;
-    else if (binaryOperator == "!=")
-        parsedQuery.joinBinaryOperator = NOT_EQUAL;
+    int onEndIdx = tokenizedQuery.size();
+    if (whereIdx != -1)
+        onEndIdx = whereIdx;
+    else if (projectIdx != -1)
+        onEndIdx = projectIdx;
+
+    int onLen = onEndIdx - (onIdx + 1);
+    auto extractColumn = [](string token)
+    {
+        size_t dot = token.find('.');
+        if (dot != string::npos)
+            return token.substr(dot + 1);
+        return token;
+    };
+
+    if (onLen == 3)
+    {
+        parsedQuery.joinFirstColumnName = extractColumn(tokenizedQuery[onIdx + 1]);
+        parsedQuery.joinSecondColumnName = extractColumn(tokenizedQuery[onIdx + 3]);
+        if (tokenizedQuery[onIdx + 2] != "==")
+        {
+            cout << "SYNTAX ERROR" << endl;
+            return false;
+        }
+        parsedQuery.joinArithmeticOperator = NO_ARITH_CLAUSE;
+    }
+    else if (onLen == 5)
+    {
+        parsedQuery.joinFirstColumnName = extractColumn(tokenizedQuery[onIdx + 1]);
+        parsedQuery.joinSecondColumnName = extractColumn(tokenizedQuery[onIdx + 3]);
+        string arith = tokenizedQuery[onIdx + 2];
+        if (arith == "+")
+            parsedQuery.joinArithmeticOperator = ADDITION;
+        else if (arith == "-")
+            parsedQuery.joinArithmeticOperator = SUBTRACTION;
+        else
+        {
+            cout << "SYNTAX ERROR" << endl;
+            return false;
+        }
+
+        if (tokenizedQuery[onIdx + 4] != "==")
+        {
+            cout << "SYNTAX ERROR" << endl;
+            return false;
+        }
+        parsedQuery.joinNumber = stoi(tokenizedQuery[onIdx + 5]);
+    }
     else
     {
         cout << "SYNTAX ERROR" << endl;
         return false;
     }
+
+    if (whereIdx != -1)
+    {
+        parsedQuery.hasWhereClause = true;
+        int whereEndIdx = (projectIdx != -1) ? projectIdx : tokenizedQuery.size();
+        if (whereEndIdx - (whereIdx + 1) != 3)
+        {
+            cout << "SYNTAX ERROR" << endl;
+            return false;
+        }
+        parsedQuery.whereColumnName = extractColumn(tokenizedQuery[whereIdx + 1]);
+        string op = tokenizedQuery[whereIdx + 2];
+        if (op == "==")
+            parsedQuery.whereOperator = EQUAL;
+        else if (op == "!=")
+            parsedQuery.whereOperator = NOT_EQUAL;
+        else if (op == "<")
+            parsedQuery.whereOperator = LESS_THAN;
+        else if (op == "<=")
+            parsedQuery.whereOperator = LEQ;
+        else if (op == ">")
+            parsedQuery.whereOperator = GREATER_THAN;
+        else if (op == ">=")
+            parsedQuery.whereOperator = GEQ;
+        else
+        {
+            cout << "SYNTAX ERROR" << endl;
+            return false;
+        }
+        parsedQuery.whereNumber = stoi(tokenizedQuery[whereIdx + 3]);
+    }
+
+    if (projectIdx != -1)
+    {
+        parsedQuery.hasProjectClause = true;
+        for (int i = projectIdx + 1; i < tokenizedQuery.size(); i++)
+        {
+            parsedQuery.projectColumnNames.push_back(extractColumn(tokenizedQuery[i]));
+        }
+        if (parsedQuery.projectColumnNames.empty())
+        {
+            cout << "SYNTAX ERROR" << endl;
+            return false;
+        }
+    }
+
     return true;
 }
 
@@ -4137,24 +4481,281 @@ bool semanticParseJOIN()
         return false;
     }
 
-    if (!tableCatalogue.isTable(parsedQuery.joinFirstRelationName) || !tableCatalogue.isTable(parsedQuery.joinSecondRelationName))
+    if (!tableCatalogue.isTable(parsedQuery.joinFirstRelationName) ||
+        !tableCatalogue.isTable(parsedQuery.joinSecondRelationName))
     {
         cout << "SEMANTIC ERROR: Relation doesn't exist" << endl;
         return false;
     }
 
-    if (!tableCatalogue.isColumnFromTable(parsedQuery.joinFirstColumnName, parsedQuery.joinFirstRelationName) || !tableCatalogue.isColumnFromTable(parsedQuery.joinSecondColumnName, parsedQuery.joinSecondRelationName))
+    if (!tableCatalogue.isColumnFromTable(parsedQuery.joinFirstColumnName, parsedQuery.joinFirstRelationName))
     {
         cout << "SEMANTIC ERROR: Column doesn't exist in relation" << endl;
         return false;
     }
+
+    if (!tableCatalogue.isColumnFromTable(parsedQuery.joinSecondColumnName, parsedQuery.joinSecondRelationName))
+    {
+        cout << "SEMANTIC ERROR: Column doesn't exist in relation" << endl;
+        return false;
+    }
+
+    if (parsedQuery.hasWhereClause)
+    {
+        if (!tableCatalogue.isColumnFromTable(parsedQuery.whereColumnName, parsedQuery.joinFirstRelationName) &&
+            !tableCatalogue.isColumnFromTable(parsedQuery.whereColumnName, parsedQuery.joinSecondRelationName))
+        {
+            cout << "SEMANTIC ERROR: Column doesn't exist in relation" << endl;
+            return false;
+        }
+    }
+
+    if (parsedQuery.hasProjectClause)
+    {
+        for (string col : parsedQuery.projectColumnNames)
+        {
+            if (!tableCatalogue.isColumnFromTable(col, parsedQuery.joinFirstRelationName) &&
+                !tableCatalogue.isColumnFromTable(col, parsedQuery.joinSecondRelationName))
+            {
+                cout << "SEMANTIC ERROR: Column doesn't exist in relation" << endl;
+                return false;
+            }
+        }
+    }
+
     return true;
 }
 
 void executeJOIN()
 {
     logger.log("executeJOIN");
-    return;
+
+    Table *table1 = tableCatalogue.getTable(parsedQuery.joinFirstRelationName);
+    Table *table2 = tableCatalogue.getTable(parsedQuery.joinSecondRelationName);
+
+    vector<string> outCols;
+    if (parsedQuery.hasProjectClause)
+    {
+        outCols = parsedQuery.projectColumnNames;
+    }
+    else
+    {
+        outCols = table1->columns;
+        outCols.insert(outCols.end(), table2->columns.begin(), table2->columns.end());
+    }
+
+    Table *resultTable = new Table(parsedQuery.joinResultRelationName, outCols);
+    int outPageIndex = 0;
+    vector<vector<int>> outBuffer;
+
+    int B = BLOCK_COUNT;
+    int col1Idx = table1->getColumnIndex(parsedQuery.joinFirstColumnName);
+    int col2Idx = table2->getColumnIndex(parsedQuery.joinSecondColumnName);
+
+    auto getJoinKey = [&](vector<int> &row, int colIdx, bool isTable2)
+    {
+        if (!isTable2)
+            return row[colIdx];
+        int val = row[colIdx];
+        if (parsedQuery.joinArithmeticOperator == ADDITION)
+            return parsedQuery.joinNumber - val;
+        if (parsedQuery.joinArithmeticOperator == SUBTRACTION)
+            return val + parsedQuery.joinNumber;
+        return val;
+    };
+
+    // Generalized probing function that handles both full in-memory and chunked fallback
+    auto performProbing = [&](Table *leftTable, Table *rightTable, int leftColIdx, int rightColIdx)
+    {
+        bool leftIsSmaller = leftTable->blockCount <= rightTable->blockCount;
+        Table *smallT = leftIsSmaller ? leftTable : rightTable;
+        Table *largeT = leftIsSmaller ? rightTable : leftTable;
+        int smallColIdx = leftIsSmaller ? leftColIdx : rightColIdx;
+        int largeColIdx = leftIsSmaller ? rightColIdx : leftColIdx;
+
+        int maxInMemoryBlocks = max(1, B - 2);
+
+        for (int chunkStart = 0; chunkStart < smallT->blockCount; chunkStart += maxInMemoryBlocks)
+        {
+            unordered_multimap<int, vector<int>> hashTable;
+            int chunkEnd = min((int)smallT->blockCount, chunkStart + maxInMemoryBlocks);
+
+            // Load chunk of smallT into memory
+            for (int b = chunkStart; b < chunkEnd; b++)
+            {
+                Page p = bufferManager.getPage(smallT->tableName, b);
+                for (int r = 0; r < smallT->rowsPerBlockCount[b]; r++)
+                {
+                    vector<int> row = p.getRow(r);
+                    int key = getJoinKey(row, smallColIdx, !leftIsSmaller);
+                    hashTable.insert({key, row});
+                }
+            }
+
+            // Stream largeT and probe
+            for (int b = 0; b < largeT->blockCount; b++)
+            {
+                Page p = bufferManager.getPage(largeT->tableName, b);
+                for (int r = 0; r < largeT->rowsPerBlockCount[b]; r++)
+                {
+                    vector<int> row = p.getRow(r);
+                    int searchKey = getJoinKey(row, largeColIdx, leftIsSmaller);
+
+                    auto range = hashTable.equal_range(searchKey);
+                    for (auto it = range.first; it != range.second; ++it)
+                    {
+                        vector<int> smallRow = it->second;
+                        vector<int> &largeRow = row;
+
+                        vector<int> &leftRow = leftIsSmaller ? smallRow : largeRow;
+                        vector<int> &rightRow = leftIsSmaller ? largeRow : smallRow;
+
+                        bool passWhere = true;
+                        if (parsedQuery.hasWhereClause)
+                        {
+                            int whereVal;
+                            if (table1->isColumn(parsedQuery.whereColumnName))
+                            {
+                                whereVal = leftRow[table1->getColumnIndex(parsedQuery.whereColumnName)];
+                            }
+                            else
+                            {
+                                whereVal = rightRow[table2->getColumnIndex(parsedQuery.whereColumnName)];
+                            }
+                            passWhere = evaluateBinOp(whereVal, parsedQuery.whereNumber, parsedQuery.whereOperator);
+                        }
+
+                        if (passWhere)
+                        {
+                            vector<int> outRow;
+                            for (const string &col : outCols)
+                            {
+                                if (table1->isColumn(col))
+                                {
+                                    outRow.push_back(leftRow[table1->getColumnIndex(col)]);
+                                }
+                                else
+                                {
+                                    outRow.push_back(rightRow[table2->getColumnIndex(col)]);
+                                }
+                            }
+
+                            outBuffer.push_back(outRow);
+                            if (outBuffer.size() == resultTable->maxRowsPerBlock)
+                            {
+                                bufferManager.writePage(resultTable->tableName, outPageIndex, outBuffer, outBuffer.size());
+                                resultTable->blockCount++;
+                                resultTable->rowsPerBlockCount.push_back(outBuffer.size());
+                                resultTable->rowCount += outBuffer.size();
+                                outPageIndex++;
+                                outBuffer.clear();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    };
+
+    // Check In-Memory Join Optimization (if smaller table fits entirely in memory)
+    if (min(table1->blockCount, table2->blockCount) <= max(1, B - 2))
+    {
+        performProbing(table1, table2, col1Idx, col2Idx);
+    }
+    else
+    {
+        // Partitioning Phase
+        int M = max(1, B - 1);
+        vector<Table *> partitions1(M);
+        vector<Table *> partitions2(M);
+
+        for (int i = 0; i < M; i++)
+        {
+            partitions1[i] = new Table(parsedQuery.joinFirstRelationName + "_part_" + to_string(i), table1->columns);
+            partitions2[i] = new Table(parsedQuery.joinSecondRelationName + "_part_" + to_string(i), table2->columns);
+            tableCatalogue.insertTable(partitions1[i]);
+            tableCatalogue.insertTable(partitions2[i]);
+        }
+
+        auto partitionTable = [&](Table *table, int colIdx, vector<Table *> &partitions, bool isTable2)
+        {
+            vector<vector<vector<int>>> buffers(M);
+            int maxRows = table->maxRowsPerBlock;
+
+            for (int b = 0; b < table->blockCount; b++)
+            {
+                Page p = bufferManager.getPage(table->tableName, b);
+                for (int r = 0; r < table->rowsPerBlockCount[b]; r++)
+                {
+                    vector<int> row = p.getRow(r);
+                    int key = getJoinKey(row, colIdx, isTable2);
+                    int hash = ((key % M) + M) % M;
+
+                    buffers[hash].push_back(row);
+                    if (buffers[hash].size() == maxRows)
+                    {
+                        bufferManager.writePage(partitions[hash]->tableName, partitions[hash]->blockCount, buffers[hash], maxRows);
+                        partitions[hash]->blockCount++;
+                        partitions[hash]->rowsPerBlockCount.push_back(maxRows);
+                        partitions[hash]->rowCount += maxRows;
+                        buffers[hash].clear();
+                    }
+                }
+            }
+
+            for (int h = 0; h < M; h++)
+            {
+                if (!buffers[h].empty())
+                {
+                    bufferManager.writePage(partitions[h]->tableName, partitions[h]->blockCount, buffers[h], buffers[h].size());
+                    partitions[h]->blockCount++;
+                    partitions[h]->rowsPerBlockCount.push_back(buffers[h].size());
+                    partitions[h]->rowCount += buffers[h].size();
+                    buffers[h].clear();
+                }
+            }
+        };
+
+        partitionTable(table1, col1Idx, partitions1, false);
+        partitionTable(table2, col2Idx, partitions2, true);
+
+        // Probing Phase
+        for (int i = 0; i < M; i++)
+        {
+            if (partitions1[i]->rowCount > 0 && partitions2[i]->rowCount > 0)
+            {
+                performProbing(partitions1[i], partitions2[i], col1Idx, col2Idx);
+            }
+        }
+
+        // Cleanup partitions
+        for (int i = 0; i < M; i++)
+        {
+            tableCatalogue.deleteTable(partitions1[i]->tableName);
+            tableCatalogue.deleteTable(partitions2[i]->tableName);
+        }
+    }
+
+    // Flush remaining output buffer
+    if (!outBuffer.empty())
+    {
+        bufferManager.writePage(resultTable->tableName, outPageIndex, outBuffer, outBuffer.size());
+        resultTable->blockCount++;
+        resultTable->rowsPerBlockCount.push_back(outBuffer.size());
+        resultTable->rowCount += outBuffer.size();
+        outBuffer.clear();
+    }
+
+    // Finalize Result Table
+    if (resultTable->rowCount > 0)
+    {
+        tableCatalogue.insertTable(resultTable);
+    }
+    else
+    {
+        resultTable->unload();
+        delete resultTable;
+    }
 }
 ```
 
@@ -4395,5 +4996,283 @@ void executeRENAME()
     Table* table = tableCatalogue.getTable(parsedQuery.renameRelationName);
     table->renameColumn(parsedQuery.renameFromColumnName, parsedQuery.renameToColumnName);
     return;
+}
+```
+
+--- ./executors/groupBy.cpp ---
+```
+#include "global.h"
+
+// Helper function to parse an aggregate string like "MAX(Salary)"
+bool parseAggregate(string token, AggregateExpression& expr) {
+    size_t openParen = token.find('(');
+    size_t closeParen = token.find(')');
+    if (openParen == string::npos || closeParen == string::npos || closeParen < openParen) {
+        cout << "SYNTAX ERROR: Invalid aggregate format" << endl; 
+        return false;
+    }
+    string funcStr = token.substr(0, openParen);
+    string colStr = token.substr(openParen + 1, closeParen - openParen - 1);
+    
+    if (funcStr == "MAX") expr.func = MAX;
+    else if (funcStr == "MIN") expr.func = MIN;
+    else if (funcStr == "COUNT") expr.func = COUNT;
+    else if (funcStr == "SUM") expr.func = SUM;
+    else if (funcStr == "AVG") expr.func = AVG;
+    else { 
+        cout << "SYNTAX ERROR: Unknown aggregate function " << funcStr << endl; 
+        return false; 
+    }
+    
+    expr.colName = colStr;
+    return true;
+}
+
+bool syntacticParseGROUP_BY(int arrowIdx) {
+    logger.log("syntacticParseGROUP_BY");
+    parsedQuery.queryType = GROUP_BY;
+    
+    // Parse result tables (everything before <-)
+    for(int i = 0; i < arrowIdx; i++) {
+        parsedQuery.groupByResultTables.push_back(tokenizedQuery[i]);
+    }
+    
+    if (arrowIdx + 2 >= tokenizedQuery.size() || tokenizedQuery[arrowIdx + 2] != "BY") {
+        cout << "SYNTAX ERROR: Expected 'BY' after 'GROUP'" << endl; return false;
+    }
+    
+    int fromIdx = -1;
+    for(int i = arrowIdx + 3; i < tokenizedQuery.size(); i++) {
+        if(tokenizedQuery[i] == "FROM") { fromIdx = i; break; }
+    }
+    if (fromIdx == -1) { cout << "SYNTAX ERROR: Expected 'FROM' clause" << endl; return false; }
+    
+    // Parse grouping attributes
+    for(int i = arrowIdx + 3; i < fromIdx; i++) {
+        parsedQuery.groupByAttributes.push_back(tokenizedQuery[i]);
+    }
+    
+    if (fromIdx + 1 >= tokenizedQuery.size()) { cout << "SYNTAX ERROR: Expected table name" << endl; return false; }
+    parsedQuery.groupByRelationName = tokenizedQuery[fromIdx + 1];
+    
+    if (fromIdx + 2 >= tokenizedQuery.size() || tokenizedQuery[fromIdx + 2] != "HAVING") {
+        cout << "SYNTAX ERROR: Expected 'HAVING' clause" << endl; return false;
+    }
+    
+    // Parse HAVING condition
+    if (fromIdx + 5 >= tokenizedQuery.size()) { cout << "SYNTAX ERROR: Incomplete HAVING clause" << endl; return false; }
+    
+    if (!parseAggregate(tokenizedQuery[fromIdx + 3], parsedQuery.havingCondition.left)) return false;
+    
+    string opStr = tokenizedQuery[fromIdx + 4];
+    if (opStr == "<") parsedQuery.havingCondition.op = LESS_THAN;
+    else if (opStr == ">") parsedQuery.havingCondition.op = GREATER_THAN;
+    else if (opStr == "<=" || opStr == "=<") parsedQuery.havingCondition.op = LEQ;
+    else if (opStr == ">=" || opStr == "=>") parsedQuery.havingCondition.op = GEQ;
+    else if (opStr == "==") parsedQuery.havingCondition.op = EQUAL;
+    else if (opStr == "!=") parsedQuery.havingCondition.op = NOT_EQUAL;
+    else { cout << "SYNTAX ERROR: Invalid operator in HAVING" << endl; return false; }
+    
+    string rightStr = tokenizedQuery[fromIdx + 5];
+    regex numeric("[-]?[0-9]+");
+    if (regex_match(rightStr, numeric)) {
+        parsedQuery.havingCondition.isRightNumber = true;
+        parsedQuery.havingCondition.rightNumber = stoi(rightStr);
+    } else {
+        parsedQuery.havingCondition.isRightNumber = false;
+        if (!parseAggregate(rightStr, parsedQuery.havingCondition.right)) return false;
+    }
+    
+    int returnIdx = fromIdx + 6;
+    if (returnIdx >= tokenizedQuery.size() || tokenizedQuery[returnIdx] != "RETURN") {
+        cout << "SYNTAX ERROR: Expected 'RETURN' clause" << endl; return false;
+    }
+    
+    // Parse RETURN aggregates
+    for(int i = returnIdx + 1; i < tokenizedQuery.size(); i++) {
+        AggregateExpression expr;
+        if (!parseAggregate(tokenizedQuery[i], expr)) return false;
+        parsedQuery.returnAggregates.push_back(expr);
+    }
+    
+    return true;
+}
+
+bool semanticParseGROUP_BY() {
+    logger.log("semanticParseGROUP_BY");
+    
+    if (!tableCatalogue.isTable(parsedQuery.groupByRelationName)) {
+        cout << "SEMANTIC ERROR: Relation doesn't exist" << endl;
+        return false;
+    }
+    
+    Table* table = tableCatalogue.getTable(parsedQuery.groupByRelationName);
+    
+    for (string attr : parsedQuery.groupByAttributes) {
+        cout<<"attr:"<<attr<<endl;
+        if (!table->isColumn(attr)) {
+            cout << "SEMANTIC ERROR: Group By column doesn't exist in relation" << endl;
+            return false;
+        }
+    }
+    
+    auto checkAggCol = [&](const AggregateExpression& expr, string errMsg) {
+        if (expr.func == COUNT && expr.colName == "*") return true;
+        if (!table->isColumn(expr.colName)) {
+            cout << errMsg << endl;
+            return false;
+        }
+        return true;
+    };
+    
+    if (!checkAggCol(parsedQuery.havingCondition.left, "SEMANTIC ERROR: Having column doesn't exist in relation")) return false;
+    
+    if (!parsedQuery.havingCondition.isRightNumber) {
+        if (!checkAggCol(parsedQuery.havingCondition.right, "SEMANTIC ERROR: Having column doesn't exist in relation")) return false;
+    }
+    
+    for (auto& expr : parsedQuery.returnAggregates) {
+        if (!checkAggCol(expr, "SEMANTIC ERROR: Return column doesn't exist in relation")) return false;
+    }
+    
+    if (parsedQuery.groupByResultTables.size() != parsedQuery.groupByAttributes.size() || 
+        parsedQuery.groupByAttributes.size() != parsedQuery.returnAggregates.size()) {
+        cout << "SEMANTIC ERROR: Number of result tables, grouping attributes, and return aggregates must match" << endl;
+        return false;
+    }
+    
+    for (string resTable : parsedQuery.groupByResultTables) {
+        if (tableCatalogue.isTable(resTable)) {
+            cout << "SEMANTIC ERROR: Resultant relation already exists" << endl;
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+// Struct to maintain the state of an aggregate function across a group
+struct AggState {
+    long long sum = 0;
+    long long count = 0;
+    int min_val = INT_MAX;
+    int max_val = INT_MIN;
+    
+    void reset() {
+        sum = 0;
+        count = 0;
+        min_val = INT_MAX;
+        max_val = INT_MIN;
+    }
+    
+    void update(int val) {
+        sum += val;
+        count++;
+        min_val = min(min_val, val);
+        max_val = max(max_val, val);
+    }
+    
+    int getResult(AggregateFunction func) {
+        if (func == SUM) return sum;
+        if (func == COUNT) return count;
+        if (func == MIN) return (min_val == INT_MAX ? 0 : min_val);
+        if (func == MAX) return (max_val == INT_MIN ? 0 : max_val);
+        if (func == AVG) return count == 0 ? 0 : sum / count;
+        return 0;
+    }
+};
+
+void executeGROUP_BY() {
+    logger.log("executeGROUP_BY");
+    Table* table = tableCatalogue.getTable(parsedQuery.groupByRelationName);
+    
+    // Process each grouping independently
+    for (int i = 0; i < parsedQuery.groupByAttributes.size(); i++) {
+        string groupAttr = parsedQuery.groupByAttributes[i];
+        string resTable = parsedQuery.groupByResultTables[i];
+        AggregateExpression retAgg = parsedQuery.returnAggregates[i];
+        
+        // 1. Create a temporary table sorted by the grouping attribute to group the rows
+        string tempName = resTable + "_temp_sort";
+        vector<int> sortCols = { table->getColumnIndex(groupAttr) };
+        vector<SortingStrategy> sortStrats = { ASC };
+        table->externalSortCreateNewTable(tempName, sortCols, sortStrats);
+        Table* sortedTable = tableCatalogue.getTable(tempName);
+        
+        // 2. Prepare the resulting table
+        string retAggName;
+        if (retAgg.func == COUNT && retAgg.colName == "*") {
+            retAggName = "COUNT";
+        } else {
+            string funcStr[] = {"MAX", "MIN", "COUNT", "SUM", "AVG"};
+            retAggName = funcStr[retAgg.func] + retAgg.colName;
+        }
+        vector<string> resCols = { groupAttr, retAggName };
+        Table* resultTable = new Table(resTable, resCols);
+        bool hasRows = false;
+        
+        // 3. Iterate through the sorted temporary table to compute aggregates
+        Cursor cursor = sortedTable->getCursor();
+        vector<int> row = cursor.getNext();
+        
+        if (!row.empty()) {
+            int groupColIdx = sortedTable->getColumnIndex(groupAttr);
+            int havLeftColIdx = parsedQuery.havingCondition.left.colName == "*" ? -1 : sortedTable->getColumnIndex(parsedQuery.havingCondition.left.colName);
+            int havRightColIdx = (!parsedQuery.havingCondition.isRightNumber && parsedQuery.havingCondition.right.colName != "*") ? sortedTable->getColumnIndex(parsedQuery.havingCondition.right.colName) : -1;
+            int retColIdx = retAgg.colName == "*" ? -1 : sortedTable->getColumnIndex(retAgg.colName);
+            
+            int currentGroupVal = row[groupColIdx];
+            AggState havLeftState, havRightState, retState;
+            
+            while (!row.empty()) {
+                if (row[groupColIdx] != currentGroupVal) {
+                    // Group completely read, evaluate HAVING condition
+                    int valL = havLeftState.getResult(parsedQuery.havingCondition.left.func);
+                    int valR = parsedQuery.havingCondition.isRightNumber ? parsedQuery.havingCondition.rightNumber : havRightState.getResult(parsedQuery.havingCondition.right.func);
+                    
+                    if (evaluateBinOp(valL, valR, parsedQuery.havingCondition.op)) {
+                        resultTable->writeRow<int>({currentGroupVal, retState.getResult(retAgg.func)});
+                        hasRows = true;
+                    }
+                    
+                    // Reset stats for the new group
+                    havLeftState.reset();
+                    havRightState.reset();
+                    retState.reset();
+                    currentGroupVal = row[groupColIdx];
+                }
+                
+                // Accumulate states for current row
+                havLeftState.update(havLeftColIdx == -1 ? 1 : row[havLeftColIdx]);
+                if (!parsedQuery.havingCondition.isRightNumber) {
+                    havRightState.update(havRightColIdx == -1 ? 1 : row[havRightColIdx]);
+                }
+                retState.update(retColIdx == -1 ? 1 : row[retColIdx]);
+                
+                row = cursor.getNext();
+            }
+            
+            // Don't forget to evaluate the very last group read!
+            int valL = havLeftState.getResult(parsedQuery.havingCondition.left.func);
+            int valR = parsedQuery.havingCondition.isRightNumber ? parsedQuery.havingCondition.rightNumber : havRightState.getResult(parsedQuery.havingCondition.right.func);
+            
+            if (evaluateBinOp(valL, valR, parsedQuery.havingCondition.op)) {
+                resultTable->writeRow<int>({currentGroupVal, retState.getResult(retAgg.func)});
+                hasRows = true;
+            }
+        }
+        
+        // 4. Save resultant table or discard if empty
+        if (hasRows) {
+            resultTable->blockify();
+            tableCatalogue.insertTable(resultTable);
+        } else {
+            resultTable->unload();
+            delete resultTable;
+        }
+        
+        // 5. Cleanup temporary sorting table
+        tableCatalogue.deleteTable(tempName);
+    }
 }
 ```

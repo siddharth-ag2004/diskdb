@@ -374,9 +374,7 @@ void Table::externalSortCreateNewTable(
         }
 
         if (!rows.empty())
-        {
             mergeSortRows(rows, 0, rows.size() - 1, columnIndices, sortOrders);
-        }
 
         string runName = resultTableName + "_run_" + to_string(runCounter++);
         Table* runTable = new Table(runName, this->columns);
@@ -403,12 +401,14 @@ void Table::externalSortCreateNewTable(
         runNames.push_back(runName);
     }
 
-    //  PHASE 2: MULTI PASS MERGE
+    // PHASE 2: MULTI PASS MERGE
 
     int pass = 0;
 
     while (runNames.size() > 1)
     {
+        bool finalMergePass = (runNames.size() <= mergeDegree);
+
         vector<string> newRunNames;
         int i = 0;
 
@@ -420,9 +420,14 @@ void Table::externalSortCreateNewTable(
             for (int j = 0; j < runsToMerge; j++)
                 mergeGroup.push_back(runNames[i + j]);
 
-            string mergedName = resultTableName +
-                                "_pass_" + to_string(pass) +
-                                "_run_" + to_string(i);
+            string mergedName;
+
+            if (finalMergePass)
+                mergedName = resultTableName;
+            else
+                mergedName = resultTableName +
+                             "_pass_" + to_string(pass) +
+                             "_run_" + to_string(i);
 
             Table* mergedTable = new Table(mergedName, this->columns);
 
@@ -493,7 +498,9 @@ void Table::externalSortCreateNewTable(
                 mergedTable->rowCount += x;
 
             tableCatalogue.insertTable(mergedTable);
-            newRunNames.push_back(mergedName);
+
+            if (!finalMergePass)
+                newRunNames.push_back(mergedName);
 
             i += runsToMerge;
         }
@@ -504,15 +511,10 @@ void Table::externalSortCreateNewTable(
                 tableCatalogue.deleteTable(name);
         }
 
+        if (finalMergePass)
+            return;
+
         runNames = newRunNames;
         pass++;
-    }
-
-    // FINAL TABLE
-
-    if (!runNames.empty())
-    {
-        Table* finalTable = tableCatalogue.getTable(runNames[0]);
-        finalTable->tableName = resultTableName;
     }
 }

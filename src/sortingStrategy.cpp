@@ -20,7 +20,7 @@ bool HeapCompare::operator()(const HeapNode &a, const HeapNode &b)
             return a.row[col] < b.row[col];
     }
 
-    return false;
+    return a.runIndex > b.runIndex;
 }
 
 bool compareRows(

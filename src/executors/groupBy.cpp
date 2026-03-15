@@ -188,14 +188,14 @@ void executeGROUP_BY() {
         string resTable = parsedQuery.groupByResultTables[i];
         AggregateExpression retAgg = parsedQuery.returnAggregates[i];
         
-        // 1. Create a temporary table sorted by the grouping attribute to group the rows
+        // Create a temporary table sorted by the grouping attribute to group the rows
         string tempName = resTable + "_temp_sort";
         vector<int> sortCols = { table->getColumnIndex(groupAttr) };
         vector<SortingStrategy> sortStrats = { ASC };
         table->externalSortCreateNewTable(tempName, sortCols, sortStrats);
         Table* sortedTable = tableCatalogue.getTable(tempName);
         
-        // 2. Prepare the resulting table
+        // Prepare the resulting table
         string retAggName;
         if (retAgg.func == COUNT && retAgg.colName == "*") {
             retAggName = "COUNT";
@@ -205,9 +205,14 @@ void executeGROUP_BY() {
         }
         vector<string> resCols = { groupAttr, retAggName };
         Table* resultTable = new Table(resTable, resCols);
+        
         bool hasRows = false;
         
-        // 3. Iterate through the sorted temporary table to compute aggregates
+        int outPageIndex = 0;
+        vector<vector<int>> outBuffer;
+        resultTable->rowCount = 0; 
+        
+        // Iterate through the sorted temporary table to compute aggregates
         Cursor cursor = sortedTable->getCursor();
         vector<int> row = cursor.getNext();
         
@@ -227,8 +232,18 @@ void executeGROUP_BY() {
                     int valR = parsedQuery.havingCondition.isRightNumber ? parsedQuery.havingCondition.rightNumber : havRightState.getResult(parsedQuery.havingCondition.right.func);
                     
                     if (evaluateBinOp(valL, valR, parsedQuery.havingCondition.op)) {
-                        resultTable->writeRow<int>({currentGroupVal, retState.getResult(retAgg.func)});
+                        outBuffer.push_back({currentGroupVal, retState.getResult(retAgg.func)});
+                        resultTable->rowCount++;
                         hasRows = true;
+                        
+                        // FLUSH BUFFER DIRECTLY TO PAGE (Just like SORT)
+                        if (outBuffer.size() == resultTable->maxRowsPerBlock) {
+                            bufferManager.writePage(resultTable->tableName, outPageIndex, outBuffer, outBuffer.size());
+                            resultTable->blockCount++;
+                            resultTable->rowsPerBlockCount.push_back(outBuffer.size());
+                            outPageIndex++;
+                            outBuffer.clear();
+                        }
                     }
                     
                     // Reset stats for the new group
@@ -253,21 +268,38 @@ void executeGROUP_BY() {
             int valR = parsedQuery.havingCondition.isRightNumber ? parsedQuery.havingCondition.rightNumber : havRightState.getResult(parsedQuery.havingCondition.right.func);
             
             if (evaluateBinOp(valL, valR, parsedQuery.havingCondition.op)) {
-                resultTable->writeRow<int>({currentGroupVal, retState.getResult(retAgg.func)});
+                outBuffer.push_back({currentGroupVal, retState.getResult(retAgg.func)});
+                resultTable->rowCount++;
                 hasRows = true;
+                
+                // FLUSH BUFFER DIRECTLY TO PAGE
+                if (outBuffer.size() == resultTable->maxRowsPerBlock) {
+                    bufferManager.writePage(resultTable->tableName, outPageIndex, outBuffer, outBuffer.size());
+                    resultTable->blockCount++;
+                    resultTable->rowsPerBlockCount.push_back(outBuffer.size());
+                    outPageIndex++;
+                    outBuffer.clear();
+                }
             }
         }
         
-        // 4. Save resultant table or discard if empty
+        // FLUSH ANY REMAINING ROWS
+        if (!outBuffer.empty()) {
+            bufferManager.writePage(resultTable->tableName, outPageIndex, outBuffer, outBuffer.size());
+            resultTable->blockCount++;
+            resultTable->rowsPerBlockCount.push_back(outBuffer.size());
+            outBuffer.clear();
+        }
+        
+        // Save resultant table or discard if empty
         if (hasRows) {
-            resultTable->blockify();
             tableCatalogue.insertTable(resultTable);
         } else {
             resultTable->unload();
             delete resultTable;
         }
         
-        // 5. Cleanup temporary sorting table
+        // Cleanup temporary sorting table
         tableCatalogue.deleteTable(tempName);
     }
 }

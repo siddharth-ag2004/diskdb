@@ -70,9 +70,17 @@ void mergeRows(
     while (i < n1 && j < n2)
     {
         if (compareRows(L[i], R[j], columnIndices, sortOrders))
+        {
             rows[k++] = L[i++];
-        else
+        }
+        else if (compareRows(R[j], L[i], columnIndices, sortOrders))
+        {
             rows[k++] = R[j++];
+        }
+        else
+        {
+            rows[k++] = L[i++];
+        }
     }
 
     while (i < n1)

@@ -178,6 +178,8 @@ void executeSORT() {
     table->externalSortCreateNewTable(
         parsedQuery.sortRelationName,
         columnIndices,
-        parsedQuery.sortStrategies
+        parsedQuery.sortStrategies,
+        parsedQuery.sortTopCount,
+        parsedQuery.sortBottomCount
     );
 }

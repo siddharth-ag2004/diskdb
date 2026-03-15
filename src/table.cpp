@@ -340,7 +340,9 @@ int Table::getColumnIndex(string columnName)
 void Table::externalSortCreateNewTable(
     const string& resultTableName,
     const vector<int> columnIndices,
-    const vector<SortingStrategy> sortOrders)
+    const vector<SortingStrategy> sortOrders,
+    int topCount,
+    int bottomCount)
 {
     logger.log("Table::externalSortCreateNewTable");
 

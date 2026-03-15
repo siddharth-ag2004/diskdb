@@ -346,17 +346,163 @@ void Table::externalSortCreateNewTable(
 {
     logger.log("Table::externalSortCreateNewTable");
 
+    // Handle completely empty table
+    if (this->blockCount == 0) {
+        Table* emptyTable = new Table(resultTableName, this->columns);
+        tableCatalogue.insertTable(emptyTable);
+        bufferManager.deleteFile(emptyTable->sourceFileName);
+        return;
+    }
+
+    // Flush buffers to disk
+    auto flushBuf = [&](Table* t, vector<vector<int>>& buf, int& pageIdx) {
+        if (!buf.empty()) {
+            bufferManager.writePage(t->tableName, pageIdx, buf, buf.size());
+            t->blockCount++;
+            t->rowsPerBlockCount.push_back(buf.size());
+            pageIdx++;
+            buf.clear();
+        }
+    };
+
+    // PARTIAL SORTING (TOP X / BOTTOM Y)
+    if (topCount != -1 || bottomCount != -1) {
+        int T = (topCount == -1) ? 0 : topCount;
+        int B = (bottomCount == -1) ? 0 : bottomCount;
+
+        // Clamp to prevent out-of-bounds or overlapping ranges
+        if (T > this->rowCount) T = this->rowCount;
+        if (B > this->rowCount - T) B = this->rowCount - T;
+        int M = this->rowCount - T - B;
+
+        string topName = this->tableName + "_top_temp";
+        string midName = this->tableName + "_mid_temp";
+        string botName = this->tableName + "_bot_temp";
+
+        Table* topTemp = new Table(topName, this->columns);
+        bufferManager.deleteFile(topTemp->sourceFileName);
+        Table* midTemp = new Table(midName, this->columns);
+        bufferManager.deleteFile(midTemp->sourceFileName);
+        Table* botTemp = new Table(botName, this->columns);
+        bufferManager.deleteFile(botTemp->sourceFileName);
+
+        topTemp->rowCount = 0; midTemp->rowCount = 0; botTemp->rowCount = 0;
+
+        Cursor cursor = this->getCursor();
+        vector<int> row = cursor.getNext();
+
+        // Write TOP rows
+        int outPageTop = 0;
+        vector<vector<int>> bufTop;
+        for (int i = 0; i < T && !row.empty(); i++) {
+            bufTop.push_back(row);
+            topTemp->rowCount++;
+            if (bufTop.size() == topTemp->maxRowsPerBlock) 
+                flushBuf(topTemp, bufTop, outPageTop);
+            row = cursor.getNext();
+        }
+        flushBuf(topTemp, bufTop, outPageTop);
+
+        // Write MID rows
+        int outPageMid = 0;
+        vector<vector<int>> bufMid;
+        for (int i = 0; i < M && !row.empty(); i++) {
+            bufMid.push_back(row);
+            midTemp->rowCount++;
+            if (bufMid.size() == midTemp->maxRowsPerBlock) 
+                flushBuf(midTemp, bufMid, outPageMid);
+            row = cursor.getNext();
+        }
+        flushBuf(midTemp, bufMid, outPageMid);
+
+        // Write BOT rows
+        int outPageBot = 0;
+        vector<vector<int>> bufBot;
+        for (int i = 0; i < B && !row.empty(); i++) {
+            bufBot.push_back(row);
+            botTemp->rowCount++;
+            if (bufBot.size() == botTemp->maxRowsPerBlock) 
+                flushBuf(botTemp, bufBot, outPageBot);
+            row = cursor.getNext();
+        }
+        flushBuf(botTemp, bufBot, outPageBot);
+
+        tableCatalogue.insertTable(topTemp);
+        tableCatalogue.insertTable(midTemp);
+        tableCatalogue.insertTable(botTemp);
+
+        string topSortedName = topName + "_sorted";
+        string botSortedName = botName + "_sorted";
+
+        // Recursively sort the TOP and BOTTOM tables
+        if (T > 0) {
+            topTemp->externalSortCreateNewTable(topSortedName, columnIndices, sortOrders, -1, -1);
+        } else {
+            Table* empty = new Table(topSortedName, this->columns);
+            tableCatalogue.insertTable(empty);
+            bufferManager.deleteFile(empty->sourceFileName);
+        }
+
+        if (B > 0) {
+            botTemp->externalSortCreateNewTable(botSortedName, columnIndices, sortOrders, -1, -1);
+        } else {
+            Table* empty = new Table(botSortedName, this->columns);
+            tableCatalogue.insertTable(empty);
+            bufferManager.deleteFile(empty->sourceFileName);
+        }
+
+        Table* topSorted = tableCatalogue.getTable(topSortedName);
+        Table* botSorted = tableCatalogue.getTable(botSortedName);
+
+        // Combine everything sequentially into the final table
+        Table* finalTable = new Table(resultTableName, this->columns);
+        bufferManager.deleteFile(finalTable->sourceFileName);
+        finalTable->rowCount = 0;
+        int finalPageIdx = 0;
+        vector<vector<int>> finalBuf;
+
+        auto appendToFinal = [&](Table* t) {
+            if (t->rowCount == 0) return;
+            Cursor c = t->getCursor();
+            vector<int> r = c.getNext();
+            while (!r.empty()) {
+                finalBuf.push_back(r);
+                finalTable->rowCount++;
+                if (finalBuf.size() == finalTable->maxRowsPerBlock) 
+                    flushBuf(finalTable, finalBuf, finalPageIdx);
+                r = c.getNext();
+            }
+        };
+
+        appendToFinal(topSorted);
+        appendToFinal(midTemp);
+        appendToFinal(botSorted);
+        flushBuf(finalTable, finalBuf, finalPageIdx);
+
+        tableCatalogue.insertTable(finalTable);
+
+        // Cleanup temporary tables used for partial sorting
+        tableCatalogue.deleteTable(topName);
+        tableCatalogue.deleteTable(midName);
+        tableCatalogue.deleteTable(botName);
+        tableCatalogue.deleteTable(topSortedName);
+        tableCatalogue.deleteTable(botSortedName);
+
+        return;
+    }
+
+    // MULTI-PASS EXTERNAL MERGE SORT 
+
     int nB = BLOCK_COUNT;
     int mergeDegree = nB - 1;
 
     vector<string> runNames;
 
-    // PHASE 1: CREATE INITIAL RUNS
-
     int currentPage = 0;
     int totalPages = this->blockCount;
     int runCounter = 0;
 
+    // 1. CREATE INITIAL RUNS
     while (currentPage < totalPages)
     {
         vector<vector<int>> rows;
@@ -365,7 +511,6 @@ void Table::externalSortCreateNewTable(
         while (pagesLoaded < nB && currentPage < totalPages)
         {
             Page page = bufferManager.getPage(this->tableName, currentPage);
-
             for (int r = 0; r < this->rowsPerBlockCount[currentPage]; r++)
                 rows.push_back(page.getRow(r));
 
@@ -376,27 +521,26 @@ void Table::externalSortCreateNewTable(
         if (!rows.empty())
             mergeSortRows(rows, 0, rows.size() - 1, columnIndices, sortOrders);
 
-        // FIX: If the entire table fits in memory, this single run IS the final result
         string runName;
         if (totalPages <= nB) {
             runName = resultTableName; 
         } else {
             runName = resultTableName + "_run_" + to_string(runCounter++);
         }
-        
+
         Table* runTable = new Table(runName, this->columns);
+        bufferManager.deleteFile(runTable->sourceFileName);
+
         int outputPageIndex = 0;
         int rowPtr = 0;
 
         while (rowPtr < rows.size())
         {
             vector<vector<int>> pageRows;
-
             for (int i = 0; i < this->maxRowsPerBlock && rowPtr < rows.size(); i++)
                 pageRows.push_back(rows[rowPtr++]);
 
             bufferManager.writePage(runName, outputPageIndex, pageRows, pageRows.size());
-
             runTable->rowsPerBlockCount.push_back(pageRows.size());
             runTable->blockCount++;
             outputPageIndex++;
@@ -407,47 +551,38 @@ void Table::externalSortCreateNewTable(
         runNames.push_back(runName);
     }
 
-    // PHASE 2: MULTI PASS MERGE
-
+    // 2. MULTI PASS MERGE
     int pass = 0;
 
     while (runNames.size() > 1)
     {
         bool finalMergePass = (runNames.size() <= mergeDegree);
-
         vector<string> newRunNames;
         int i = 0;
 
         while (i < runNames.size())
         {
             int runsToMerge = min(mergeDegree, (int)(runNames.size() - i));
-
             vector<string> mergeGroup;
             for (int j = 0; j < runsToMerge; j++)
                 mergeGroup.push_back(runNames[i + j]);
 
             string mergedName;
-
             if (finalMergePass)
                 mergedName = resultTableName;
             else
-                mergedName = resultTableName +
-                             "_pass_" + to_string(pass) +
-                             "_run_" + to_string(i);
+                mergedName = resultTableName + "_pass_" + to_string(pass) + "_run_" + to_string(i);
 
             Table* mergedTable = new Table(mergedName, this->columns);
+            bufferManager.deleteFile(mergedTable->sourceFileName);
 
             vector<Cursor> cursors;
             for (auto &name : mergeGroup)
                 cursors.emplace_back(name, 0);
 
-            priority_queue<
-                HeapNode,
-                vector<HeapNode>,
-                HeapCompare
-            > minHeap(HeapCompare(columnIndices, sortOrders));
+            priority_queue<HeapNode, vector<HeapNode>, HeapCompare> minHeap(HeapCompare(columnIndices, sortOrders));
 
-            // initialize heap
+            // Initialize heap
             for (int j = 0; j < cursors.size(); j++)
             {
                 vector<int> row = cursors[j].getNext();
@@ -462,7 +597,6 @@ void Table::externalSortCreateNewTable(
             {
                 HeapNode node = minHeap.top();
                 minHeap.pop();
-
                 outputRows.push_back(node.row);
 
                 vector<int> nextRow = cursors[node.runIndex].getNext();
@@ -471,16 +605,9 @@ void Table::externalSortCreateNewTable(
 
                 if (outputRows.size() == this->maxRowsPerBlock)
                 {
-                    bufferManager.writePage(
-                        mergedName,
-                        outputPageIndex,
-                        outputRows,
-                        outputRows.size()
-                    );
-
+                    bufferManager.writePage(mergedName, outputPageIndex, outputRows, outputRows.size());
                     mergedTable->rowsPerBlockCount.push_back(outputRows.size());
                     mergedTable->blockCount++;
-
                     outputRows.clear();
                     outputPageIndex++;
                 }
@@ -488,13 +615,7 @@ void Table::externalSortCreateNewTable(
 
             if (!outputRows.empty())
             {
-                bufferManager.writePage(
-                    mergedName,
-                    outputPageIndex,
-                    outputRows,
-                    outputRows.size()
-                );
-
+                bufferManager.writePage(mergedName, outputPageIndex, outputRows, outputRows.size());
                 mergedTable->rowsPerBlockCount.push_back(outputRows.size());
                 mergedTable->blockCount++;
             }

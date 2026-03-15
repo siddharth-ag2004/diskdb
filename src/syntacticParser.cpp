@@ -33,6 +33,21 @@ bool syntacticParse()
         return syntacticParseSORT();
     else
     {
+
+        // Find the index of "<-" to support multiple resultant tables
+        int arrowIdx = -1;
+        for (int i = 0; i < tokenizedQuery.size(); i++) {
+            if (tokenizedQuery[i] == "<-") {
+                arrowIdx = i;
+                break;
+            }
+        }
+
+        // Route to GROUP BY if detected
+        if (arrowIdx > 0 && arrowIdx + 1 < tokenizedQuery.size() && tokenizedQuery[arrowIdx + 1] == "GROUP") {
+            return syntacticParseGROUP_BY(arrowIdx);
+        }
+        
         string resultantRelationName = possibleQueryType;
         if (tokenizedQuery[1] != "<-" || tokenizedQuery.size() < 3)
         {
@@ -138,6 +153,12 @@ void ParsedQuery::clear()
     this->pathSrcNodeId = -1;
     this->pathDestNodeId = -1;
     this->pathConditions.clear();
+
+    //GroupBy
+    this->groupByResultTables.clear();
+    this->groupByAttributes.clear();
+    this->groupByRelationName = "";
+    this->returnAggregates.clear();
 }
 
 /**

@@ -21,6 +21,7 @@ bool semanticParse(){
         case SORT: return semanticParseSORT();
         case SOURCE: return semanticParseSOURCE();
         case DEGREE: return semanticParseDEGREE();
+        case GROUP_BY: return semanticParseGROUP_BY();
         default: cout<<"SEMANTIC ERROR"<<endl;
     }
 

@@ -21,6 +21,7 @@ void executeCommand(){
         case SORT: executeSORT(); break;
         case SOURCE: executeSOURCE(); break;
         case DEGREE: executeDEGREE(); break;
+        case GROUP_BY: executeGROUP_BY(); break;
         default: cout<<"PARSING ERROR"<<endl;
     }
 

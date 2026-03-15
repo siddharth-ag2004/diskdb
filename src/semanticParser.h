@@ -24,3 +24,6 @@ bool semanticParseSELECTION();
 bool semanticParseSORT();
 bool semanticParseSOURCE();
 bool semanticParseDEGREE();
+
+// GroupBy
+bool semanticParseGROUP_BY();

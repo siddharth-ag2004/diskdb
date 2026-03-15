@@ -26,6 +26,7 @@ enum QueryType
     LOAD_GRAPH,
     PATH,
     DEGREE,
+    GROUP_BY,
     UNDETERMINED,
 };
 
@@ -60,6 +61,26 @@ enum EntityType
     TABLE,
     GRAPH,
     UNDEFINED_ENTITY
+};
+
+
+// GroupBy 
+
+enum AggregateFunction {
+    MAX, MIN, COUNT, SUM, AVG, NO_AGG
+};
+
+struct AggregateExpression {
+    AggregateFunction func;
+    string colName;
+};
+
+struct HavingCondition {
+    AggregateExpression left;
+    BinaryOperator op;
+    bool isRightNumber;
+    int rightNumber;
+    AggregateExpression right;
 };
 
 
@@ -147,6 +168,14 @@ public:
     string degreeGraphName = "";
     int degreeNodeId = -1;
 
+    //GroupBy 
+    vector<string> groupByResultTables;
+    vector<string> groupByAttributes;
+    string groupByRelationName;
+    HavingCondition havingCondition;
+    vector<AggregateExpression> returnAggregates;
+
+
     ParsedQuery();
     void clear();
 };
@@ -171,3 +200,7 @@ bool syntacticParseDEGREE();
 
 bool isFileExists(string tableName);
 bool isQueryFile(string fileName);
+
+// GroupBy
+
+bool syntacticParseGROUP_BY(int arrowIdx);

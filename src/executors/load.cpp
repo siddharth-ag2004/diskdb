@@ -119,7 +119,7 @@ void executeLOADGraph()
     if (graph->load())
     {
         graphCatalogue.insertGraph(graph);
-        cout << "Loaded Graph. Node Count: " << graph->nodeCount << " Edge Count: " << graph->edgeCount << endl;
+        cout << "Loaded Graph.Node Count:" << graph->nodeCount << ",Edge Count:" << graph->edgeCount << endl;
     }
     return;
 }

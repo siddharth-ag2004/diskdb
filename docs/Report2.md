@@ -153,7 +153,7 @@ Let $B$ be the blocks in the source table. For each grouping attribute out of $G
     }
     else
     {
-        // Hash Join partitioning logic
+        // General hash Join partitioning logic
     }
     ```
 

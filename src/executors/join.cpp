@@ -45,18 +45,32 @@ bool syntacticParseJOIN()
         onEndIdx = projectIdx;
 
     int onLen = onEndIdx - (onIdx + 1);
-    auto extractColumn = [](string token)
+    
+    auto extractColumn = [&](string token, string &extracted) -> bool
     {
         size_t dot = token.find('.');
         if (dot != string::npos)
-            return token.substr(dot + 1);
-        return token;
+        {
+            string prefix = token.substr(0, dot);
+            if (prefix != parsedQuery.joinFirstRelationName && prefix != parsedQuery.joinSecondRelationName)
+                return false; 
+            extracted = token.substr(dot + 1);
+        }
+        else
+        {
+            extracted = token;
+        }
+        return true;
     };
 
     if (onLen == 3)
     {
-        parsedQuery.joinFirstColumnName = extractColumn(tokenizedQuery[onIdx + 1]);
-        parsedQuery.joinSecondColumnName = extractColumn(tokenizedQuery[onIdx + 3]);
+        if (!extractColumn(tokenizedQuery[onIdx + 1], parsedQuery.joinFirstColumnName) ||
+            !extractColumn(tokenizedQuery[onIdx + 3], parsedQuery.joinSecondColumnName))
+        {
+            cout << "SYNTAX ERROR" << endl;
+            return false;
+        }
         if (tokenizedQuery[onIdx + 2] != "==")
         {
             cout << "SYNTAX ERROR" << endl;
@@ -66,8 +80,12 @@ bool syntacticParseJOIN()
     }
     else if (onLen == 5)
     {
-        parsedQuery.joinFirstColumnName = extractColumn(tokenizedQuery[onIdx + 1]);
-        parsedQuery.joinSecondColumnName = extractColumn(tokenizedQuery[onIdx + 3]);
+        if (!extractColumn(tokenizedQuery[onIdx + 1], parsedQuery.joinFirstColumnName) ||
+            !extractColumn(tokenizedQuery[onIdx + 3], parsedQuery.joinSecondColumnName))
+        {
+            cout << "SYNTAX ERROR" << endl;
+            return false;
+        }
         string arith = tokenizedQuery[onIdx + 2];
         if (arith == "+")
             parsedQuery.joinArithmeticOperator = ADDITION;
@@ -101,7 +119,11 @@ bool syntacticParseJOIN()
             cout << "SYNTAX ERROR" << endl;
             return false;
         }
-        parsedQuery.whereColumnName = extractColumn(tokenizedQuery[whereIdx + 1]);
+        if (!extractColumn(tokenizedQuery[whereIdx + 1], parsedQuery.whereColumnName))
+        {
+            cout << "SYNTAX ERROR" << endl;
+            return false;
+        }
         string op = tokenizedQuery[whereIdx + 2];
         if (op == "==")
             parsedQuery.whereOperator = EQUAL;
@@ -128,7 +150,13 @@ bool syntacticParseJOIN()
         parsedQuery.hasProjectClause = true;
         for (int i = projectIdx + 1; i < tokenizedQuery.size(); i++)
         {
-            parsedQuery.projectColumnNames.push_back(extractColumn(tokenizedQuery[i]));
+            string col;
+            if (!extractColumn(tokenizedQuery[i], col))
+            {
+                cout << "SYNTAX ERROR" << endl;
+                return false;
+            }
+            parsedQuery.projectColumnNames.push_back(col);
         }
         if (parsedQuery.projectColumnNames.empty())
         {
@@ -233,7 +261,6 @@ void executeJOIN()
         return val;
     };
 
-    // Generalized probing function that handles both full in-memory and chunked fallback
     auto performProbing = [&](Table *leftTable, Table *rightTable, int leftColIdx, int rightColIdx)
     {
         bool leftIsSmaller = leftTable->blockCount <= rightTable->blockCount;
@@ -249,7 +276,6 @@ void executeJOIN()
             unordered_multimap<int, vector<int>> hashTable;
             int chunkEnd = min((int)smallT->blockCount, chunkStart + maxInMemoryBlocks);
 
-            // Load chunk of smallT into memory
             for (int b = chunkStart; b < chunkEnd; b++)
             {
                 Page p = bufferManager.getPage(smallT->tableName, b);
@@ -261,7 +287,6 @@ void executeJOIN()
                 }
             }
 
-            // Stream largeT and probe
             for (int b = 0; b < largeT->blockCount; b++)
             {
                 Page p = bufferManager.getPage(largeT->tableName, b);
@@ -326,22 +351,26 @@ void executeJOIN()
         }
     };
 
-    // Check In-Memory Join Optimization (if smaller table fits entirely in memory)
     if (min(table1->blockCount, table2->blockCount) <= max(1, B - 2))
     {
         performProbing(table1, table2, col1Idx, col2Idx);
     }
     else
     {
-        // Partitioning Phase
+        static int join_query_counter = 0;
+        join_query_counter++;
+
         int M = max(1, B - 1);
         vector<Table *> partitions1(M);
         vector<Table *> partitions2(M);
 
         for (int i = 0; i < M; i++)
         {
-            partitions1[i] = new Table(parsedQuery.joinFirstRelationName + "_part_" + to_string(i), table1->columns);
-            partitions2[i] = new Table(parsedQuery.joinSecondRelationName + "_part_" + to_string(i), table2->columns);
+            string p1Name = parsedQuery.joinFirstRelationName + "_j" + to_string(join_query_counter) + "_p" + to_string(i);
+            string p2Name = parsedQuery.joinSecondRelationName + "_j" + to_string(join_query_counter) + "_p" + to_string(i);
+            
+            partitions1[i] = new Table(p1Name, table1->columns);
+            partitions2[i] = new Table(p2Name, table2->columns);
             tableCatalogue.insertTable(partitions1[i]);
             tableCatalogue.insertTable(partitions2[i]);
         }
@@ -388,7 +417,6 @@ void executeJOIN()
         partitionTable(table1, col1Idx, partitions1, false);
         partitionTable(table2, col2Idx, partitions2, true);
 
-        // Probing Phase
         for (int i = 0; i < M; i++)
         {
             if (partitions1[i]->rowCount > 0 && partitions2[i]->rowCount > 0)
@@ -397,7 +425,6 @@ void executeJOIN()
             }
         }
 
-        // Cleanup partitions
         for (int i = 0; i < M; i++)
         {
             tableCatalogue.deleteTable(partitions1[i]->tableName);
@@ -405,7 +432,6 @@ void executeJOIN()
         }
     }
 
-    // Flush remaining output buffer
     if (!outBuffer.empty())
     {
         bufferManager.writePage(resultTable->tableName, outPageIndex, outBuffer, outBuffer.size());
@@ -415,7 +441,6 @@ void executeJOIN()
         outBuffer.clear();
     }
 
-    // Finalize Result Table
     if (resultTable->rowCount > 0)
     {
         tableCatalogue.insertTable(resultTable);

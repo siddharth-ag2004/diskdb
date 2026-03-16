@@ -1,6 +1,5 @@
 #include "global.h"
 
-// Helper function to parse an aggregate string like "MAX(Salary)"
 bool parseAggregate(string token, AggregateExpression& expr) {
     size_t openParen = token.find('(');
     size_t closeParen = token.find(')');
@@ -29,7 +28,6 @@ bool syntacticParseGROUP_BY(int arrowIdx) {
     logger.log("syntacticParseGROUP_BY");
     parsedQuery.queryType = GROUP_BY;
     
-    // Parse result tables (everything before <-)
     for(int i = 0; i < arrowIdx; i++) {
         parsedQuery.groupByResultTables.push_back(tokenizedQuery[i]);
     }
@@ -44,7 +42,6 @@ bool syntacticParseGROUP_BY(int arrowIdx) {
     }
     if (fromIdx == -1) { cout << "SYNTAX ERROR: Expected 'FROM' clause" << endl; return false; }
     
-    // Parse grouping attributes
     for(int i = arrowIdx + 3; i < fromIdx; i++) {
         parsedQuery.groupByAttributes.push_back(tokenizedQuery[i]);
     }
@@ -56,7 +53,6 @@ bool syntacticParseGROUP_BY(int arrowIdx) {
         cout << "SYNTAX ERROR: Expected 'HAVING' clause" << endl; return false;
     }
     
-    // Parse HAVING condition
     if (fromIdx + 5 >= tokenizedQuery.size()) { cout << "SYNTAX ERROR: Incomplete HAVING clause" << endl; return false; }
     
     if (!parseAggregate(tokenizedQuery[fromIdx + 3], parsedQuery.havingCondition.left)) return false;
@@ -85,7 +81,6 @@ bool syntacticParseGROUP_BY(int arrowIdx) {
         cout << "SYNTAX ERROR: Expected 'RETURN' clause" << endl; return false;
     }
     
-    // Parse RETURN aggregates
     for(int i = returnIdx + 1; i < tokenizedQuery.size(); i++) {
         AggregateExpression expr;
         if (!parseAggregate(tokenizedQuery[i], expr)) return false;
@@ -147,7 +142,6 @@ bool semanticParseGROUP_BY() {
     return true;
 }
 
-// Struct to maintain the state of an aggregate function across a group
 struct AggState {
     long long sum = 0;
     long long count = 0;
@@ -173,7 +167,7 @@ struct AggState {
         if (func == COUNT) return count;
         if (func == MIN) return (min_val == INT_MAX ? 0 : min_val);
         if (func == MAX) return (max_val == INT_MIN ? 0 : max_val);
-        if (func == AVG) return count == 0 ? 0 : (sum + count - 1) / count;
+        if (func == AVG) return count == 0 ? 0 : (int)std::ceil((double)sum / count);
         return 0;
     }
 };
@@ -182,20 +176,17 @@ void executeGROUP_BY() {
     logger.log("executeGROUP_BY");
     Table* table = tableCatalogue.getTable(parsedQuery.groupByRelationName);
     
-    // Process each grouping independently
     for (int i = 0; i < parsedQuery.groupByAttributes.size(); i++) {
         string groupAttr = parsedQuery.groupByAttributes[i];
         string resTable = parsedQuery.groupByResultTables[i];
         AggregateExpression retAgg = parsedQuery.returnAggregates[i];
         
-        // Create a temporary table sorted by the grouping attribute to group the rows
         string tempName = resTable + "_temp_sort";
         vector<int> sortCols = { table->getColumnIndex(groupAttr) };
         vector<SortingStrategy> sortStrats = { ASC };
         table->externalSortCreateNewTable(tempName, sortCols, sortStrats);
         Table* sortedTable = tableCatalogue.getTable(tempName);
         
-        // Prepare the resulting table
         string retAggName;
         if (retAgg.func == COUNT && retAgg.colName == "*") {
             retAggName = "COUNT";
@@ -212,7 +203,6 @@ void executeGROUP_BY() {
         vector<vector<int>> outBuffer;
         resultTable->rowCount = 0; 
         
-        // Iterate through the sorted temporary table to compute aggregates
         Cursor cursor = sortedTable->getCursor();
         vector<int> row = cursor.getNext();
         
@@ -227,7 +217,6 @@ void executeGROUP_BY() {
             
             while (!row.empty()) {
                 if (row[groupColIdx] != currentGroupVal) {
-                    // Group completely read, evaluate HAVING condition
                     int valL = havLeftState.getResult(parsedQuery.havingCondition.left.func);
                     int valR = parsedQuery.havingCondition.isRightNumber ? parsedQuery.havingCondition.rightNumber : havRightState.getResult(parsedQuery.havingCondition.right.func);
                     
@@ -236,7 +225,6 @@ void executeGROUP_BY() {
                         resultTable->rowCount++;
                         hasRows = true;
                         
-                        // FLUSH BUFFER DIRECTLY TO PAGE (Just like SORT)
                         if (outBuffer.size() == resultTable->maxRowsPerBlock) {
                             bufferManager.writePage(resultTable->tableName, outPageIndex, outBuffer, outBuffer.size());
                             resultTable->blockCount++;
@@ -246,14 +234,12 @@ void executeGROUP_BY() {
                         }
                     }
                     
-                    // Reset stats for the new group
                     havLeftState.reset();
                     havRightState.reset();
                     retState.reset();
                     currentGroupVal = row[groupColIdx];
                 }
                 
-                // Accumulate states for current row
                 havLeftState.update(havLeftColIdx == -1 ? 1 : row[havLeftColIdx]);
                 if (!parsedQuery.havingCondition.isRightNumber) {
                     havRightState.update(havRightColIdx == -1 ? 1 : row[havRightColIdx]);
@@ -263,7 +249,6 @@ void executeGROUP_BY() {
                 row = cursor.getNext();
             }
             
-            // Don't forget to evaluate the very last group read!
             int valL = havLeftState.getResult(parsedQuery.havingCondition.left.func);
             int valR = parsedQuery.havingCondition.isRightNumber ? parsedQuery.havingCondition.rightNumber : havRightState.getResult(parsedQuery.havingCondition.right.func);
             
@@ -272,7 +257,6 @@ void executeGROUP_BY() {
                 resultTable->rowCount++;
                 hasRows = true;
                 
-                // FLUSH BUFFER DIRECTLY TO PAGE
                 if (outBuffer.size() == resultTable->maxRowsPerBlock) {
                     bufferManager.writePage(resultTable->tableName, outPageIndex, outBuffer, outBuffer.size());
                     resultTable->blockCount++;
@@ -283,7 +267,6 @@ void executeGROUP_BY() {
             }
         }
         
-        // FLUSH ANY REMAINING ROWS
         if (!outBuffer.empty()) {
             bufferManager.writePage(resultTable->tableName, outPageIndex, outBuffer, outBuffer.size());
             resultTable->blockCount++;
@@ -291,7 +274,6 @@ void executeGROUP_BY() {
             outBuffer.clear();
         }
         
-        // Save resultant table or discard if empty
         if (hasRows) {
             tableCatalogue.insertTable(resultTable);
         } else {
@@ -299,7 +281,6 @@ void executeGROUP_BY() {
             delete resultTable;
         }
         
-        // Cleanup temporary sorting table
         tableCatalogue.deleteTable(tempName);
     }
 }

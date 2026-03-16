@@ -6,3 +6,4 @@ src/server
 venv
 tests/cases
 data/*
+src/*.py

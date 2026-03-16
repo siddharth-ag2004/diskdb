@@ -1,0 +1,2 @@
+Result1, Result2, Result3 <- GROUP BY DepartmentID, RoleID, YearsOfExperience FROM emp HAVING AVG(Salary) > AVG(Expenses) RETURN MAX(Salary), MIN(YearsOfExperience), SUM(Expenses)
+RESULT <- GROUP BY DepartmentID FROM emp HAVING AVG(Salary) > 30000 RETURN COUNT(*)

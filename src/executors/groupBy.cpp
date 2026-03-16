@@ -173,7 +173,7 @@ struct AggState {
         if (func == COUNT) return count;
         if (func == MIN) return (min_val == INT_MAX ? 0 : min_val);
         if (func == MAX) return (max_val == INT_MIN ? 0 : max_val);
-        if (func == AVG) return count == 0 ? 0 : sum / count;
+        if (func == AVG) return count == 0 ? 0 : (sum + count - 1) / count;
         return 0;
     }
 };

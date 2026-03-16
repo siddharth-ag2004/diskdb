@@ -1113,8 +1113,8 @@ class BufferManager{
 
 using namespace std;
 
-float BLOCK_SIZE = 0.05;
-uint BLOCK_COUNT = 3;
+float BLOCK_SIZE = 1;
+uint BLOCK_COUNT = 10;
 uint PRINT_COUNT = 20;
 Logger logger;
 vector<string> tokenizedQuery;
@@ -1349,6 +1349,9 @@ bool semanticParseDEGREE();
 
 // GroupBy
 bool semanticParseGROUP_BY();
+
+//SetBuffer
+bool semanticParseSET_BUFFER();
 ```
 
 --- ./binarySearch.cpp ---
@@ -1496,6 +1499,7 @@ void executePRINT();
 void executePROJECTION();
 void executeRENAME();
 void executeSELECTION();
+void executeSET_BUFFER();
 void executeSORT();
 void executeSOURCE();
 void executeDEGREE();
@@ -1616,6 +1620,7 @@ enum QueryType
     PROJECTION,
     RENAME,
     SELECTION,
+    SET_BUFFER,
     SORT,
     SOURCE,
     LOAD_GRAPH,
@@ -1770,6 +1775,9 @@ public:
     HavingCondition havingCondition;
     vector<AggregateExpression> returnAggregates;
 
+    //SetBuffer
+    int setBufferSize = 10;
+
 
     ParsedQuery();
     void clear();
@@ -1799,6 +1807,9 @@ bool isQueryFile(string fileName);
 // GroupBy
 
 bool syntacticParseGROUP_BY(int arrowIdx);
+
+//SetBuffer
+bool syntacticParseSET_BUFFER(); 
 
 ```
 
@@ -1907,6 +1918,8 @@ bool syntacticParse()
         return syntacticParseSOURCE();
     else if (possibleQueryType == "DEGREE")
         return syntacticParseDEGREE();
+    else if (possibleQueryType == "SETBUFFER") 
+        return syntacticParseSET_BUFFER();
     else if (possibleQueryType == "SORT")
         return syntacticParseSORT();
     else
@@ -2037,6 +2050,9 @@ void ParsedQuery::clear()
     this->groupByAttributes.clear();
     this->groupByRelationName = "";
     this->returnAggregates.clear();
+
+    //SetBuffer
+    this->setBufferSize = 10;
 }
 
 /**
@@ -2234,6 +2250,7 @@ void executeCommand(){
         case PROJECTION: executePROJECTION(); break;
         case RENAME: executeRENAME(); break;
         case SELECTION: executeSELECTION(); break;
+        case SET_BUFFER: executeSET_BUFFER(); break;
         case SORT: executeSORT(); break;
         case SOURCE: executeSOURCE(); break;
         case DEGREE: executeDEGREE(); break;
@@ -2359,7 +2376,7 @@ Page BufferManager::insertIntoPool(string tableName, int pageIndex)
 {
     logger.log("BufferManager::insertIntoPool");
     Page page(tableName, pageIndex);
-    if (this->pages.size() >= BLOCK_COUNT)
+    while (this->pages.size() >= BLOCK_COUNT)
         pages.pop_front();
     pages.push_back(page);
     return page;
@@ -3226,6 +3243,7 @@ bool semanticParse(){
         case PROJECTION: return semanticParsePROJECTION();
         case RENAME: return semanticParseRENAME();
         case SELECTION: return semanticParseSELECTION();
+        case SET_BUFFER: return semanticParseSET_BUFFER();
         case SORT: return semanticParseSORT();
         case SOURCE: return semanticParseSOURCE();
         case DEGREE: return semanticParseDEGREE();
@@ -3896,7 +3914,7 @@ void executeLOADGraph()
     if (graph->load())
     {
         graphCatalogue.insertGraph(graph);
-        cout << "Loaded Graph. Node Count: " << graph->nodeCount << " Edge Count: " << graph->edgeCount << endl;
+        cout << "Loaded Graph.Node Count:" << graph->nodeCount << ",Edge Count:" << graph->edgeCount << endl;
     }
     return;
 }
@@ -4238,6 +4256,58 @@ void executePRINT()
 
 ```
 
+--- ./executors/setBuffer.cpp ---
+```
+#include "global.h"
+
+/**
+ * @brief 
+ * SYNTAX: SETBUFFER <K>
+ */
+bool syntacticParseSET_BUFFER()
+{
+    logger.log("syntacticParseSET_BUFFER");
+    if (tokenizedQuery.size() != 2)
+    {
+        cout << "SYNTAX ERROR" << endl;
+        return false;
+    }
+    
+    parsedQuery.queryType = SET_BUFFER;
+    
+    try {
+        parsedQuery.setBufferSize = stoi(tokenizedQuery[1]);
+    } catch (...) {
+        cout << "SYNTAX ERROR" << endl;
+        return false;
+    }
+    
+    return true;
+}
+
+bool semanticParseSET_BUFFER()
+{
+    logger.log("semanticParseSET_BUFFER");
+    if (parsedQuery.setBufferSize < 2 || parsedQuery.setBufferSize > 10)
+    {
+        cout << "SEMANTIC ERROR: Buffer size must be between 2 and 10" << endl;
+        return false;
+    }
+    return true;
+}
+
+void executeSET_BUFFER()
+{
+    logger.log("executeSET_BUFFER");
+    // Update the global BLOCK_COUNT
+    BLOCK_COUNT = parsedQuery.setBufferSize;
+    
+    // As per TA doubt document, no pages are dropped immediately from main memory.
+    // The BufferManager will handle the resizing during subsequent reads.
+    return;
+}
+```
+
 --- ./executors/path.cpp ---
 ```
 #include "global.h"
@@ -4503,18 +4573,32 @@ bool syntacticParseJOIN()
         onEndIdx = projectIdx;
 
     int onLen = onEndIdx - (onIdx + 1);
-    auto extractColumn = [](string token)
+    
+    auto extractColumn = [&](string token, string &extracted) -> bool
     {
         size_t dot = token.find('.');
         if (dot != string::npos)
-            return token.substr(dot + 1);
-        return token;
+        {
+            string prefix = token.substr(0, dot);
+            if (prefix != parsedQuery.joinFirstRelationName && prefix != parsedQuery.joinSecondRelationName)
+                return false; 
+            extracted = token.substr(dot + 1);
+        }
+        else
+        {
+            extracted = token;
+        }
+        return true;
     };
 
     if (onLen == 3)
     {
-        parsedQuery.joinFirstColumnName = extractColumn(tokenizedQuery[onIdx + 1]);
-        parsedQuery.joinSecondColumnName = extractColumn(tokenizedQuery[onIdx + 3]);
+        if (!extractColumn(tokenizedQuery[onIdx + 1], parsedQuery.joinFirstColumnName) ||
+            !extractColumn(tokenizedQuery[onIdx + 3], parsedQuery.joinSecondColumnName))
+        {
+            cout << "SYNTAX ERROR" << endl;
+            return false;
+        }
         if (tokenizedQuery[onIdx + 2] != "==")
         {
             cout << "SYNTAX ERROR" << endl;
@@ -4524,8 +4608,12 @@ bool syntacticParseJOIN()
     }
     else if (onLen == 5)
     {
-        parsedQuery.joinFirstColumnName = extractColumn(tokenizedQuery[onIdx + 1]);
-        parsedQuery.joinSecondColumnName = extractColumn(tokenizedQuery[onIdx + 3]);
+        if (!extractColumn(tokenizedQuery[onIdx + 1], parsedQuery.joinFirstColumnName) ||
+            !extractColumn(tokenizedQuery[onIdx + 3], parsedQuery.joinSecondColumnName))
+        {
+            cout << "SYNTAX ERROR" << endl;
+            return false;
+        }
         string arith = tokenizedQuery[onIdx + 2];
         if (arith == "+")
             parsedQuery.joinArithmeticOperator = ADDITION;
@@ -4559,7 +4647,11 @@ bool syntacticParseJOIN()
             cout << "SYNTAX ERROR" << endl;
             return false;
         }
-        parsedQuery.whereColumnName = extractColumn(tokenizedQuery[whereIdx + 1]);
+        if (!extractColumn(tokenizedQuery[whereIdx + 1], parsedQuery.whereColumnName))
+        {
+            cout << "SYNTAX ERROR" << endl;
+            return false;
+        }
         string op = tokenizedQuery[whereIdx + 2];
         if (op == "==")
             parsedQuery.whereOperator = EQUAL;
@@ -4586,7 +4678,13 @@ bool syntacticParseJOIN()
         parsedQuery.hasProjectClause = true;
         for (int i = projectIdx + 1; i < tokenizedQuery.size(); i++)
         {
-            parsedQuery.projectColumnNames.push_back(extractColumn(tokenizedQuery[i]));
+            string col;
+            if (!extractColumn(tokenizedQuery[i], col))
+            {
+                cout << "SYNTAX ERROR" << endl;
+                return false;
+            }
+            parsedQuery.projectColumnNames.push_back(col);
         }
         if (parsedQuery.projectColumnNames.empty())
         {
@@ -4691,7 +4789,6 @@ void executeJOIN()
         return val;
     };
 
-    // Generalized probing function that handles both full in-memory and chunked fallback
     auto performProbing = [&](Table *leftTable, Table *rightTable, int leftColIdx, int rightColIdx)
     {
         bool leftIsSmaller = leftTable->blockCount <= rightTable->blockCount;
@@ -4707,7 +4804,6 @@ void executeJOIN()
             unordered_multimap<int, vector<int>> hashTable;
             int chunkEnd = min((int)smallT->blockCount, chunkStart + maxInMemoryBlocks);
 
-            // Load chunk of smallT into memory
             for (int b = chunkStart; b < chunkEnd; b++)
             {
                 Page p = bufferManager.getPage(smallT->tableName, b);
@@ -4719,7 +4815,6 @@ void executeJOIN()
                 }
             }
 
-            // Stream largeT and probe
             for (int b = 0; b < largeT->blockCount; b++)
             {
                 Page p = bufferManager.getPage(largeT->tableName, b);
@@ -4784,22 +4879,26 @@ void executeJOIN()
         }
     };
 
-    // Check In-Memory Join Optimization (if smaller table fits entirely in memory)
     if (min(table1->blockCount, table2->blockCount) <= max(1, B - 2))
     {
         performProbing(table1, table2, col1Idx, col2Idx);
     }
     else
     {
-        // Partitioning Phase
+        static int join_query_counter = 0;
+        join_query_counter++;
+
         int M = max(1, B - 1);
         vector<Table *> partitions1(M);
         vector<Table *> partitions2(M);
 
         for (int i = 0; i < M; i++)
         {
-            partitions1[i] = new Table(parsedQuery.joinFirstRelationName + "_part_" + to_string(i), table1->columns);
-            partitions2[i] = new Table(parsedQuery.joinSecondRelationName + "_part_" + to_string(i), table2->columns);
+            string p1Name = parsedQuery.joinFirstRelationName + "_j" + to_string(join_query_counter) + "_p" + to_string(i);
+            string p2Name = parsedQuery.joinSecondRelationName + "_j" + to_string(join_query_counter) + "_p" + to_string(i);
+            
+            partitions1[i] = new Table(p1Name, table1->columns);
+            partitions2[i] = new Table(p2Name, table2->columns);
             tableCatalogue.insertTable(partitions1[i]);
             tableCatalogue.insertTable(partitions2[i]);
         }
@@ -4846,7 +4945,6 @@ void executeJOIN()
         partitionTable(table1, col1Idx, partitions1, false);
         partitionTable(table2, col2Idx, partitions2, true);
 
-        // Probing Phase
         for (int i = 0; i < M; i++)
         {
             if (partitions1[i]->rowCount > 0 && partitions2[i]->rowCount > 0)
@@ -4855,7 +4953,6 @@ void executeJOIN()
             }
         }
 
-        // Cleanup partitions
         for (int i = 0; i < M; i++)
         {
             tableCatalogue.deleteTable(partitions1[i]->tableName);
@@ -4863,7 +4960,6 @@ void executeJOIN()
         }
     }
 
-    // Flush remaining output buffer
     if (!outBuffer.empty())
     {
         bufferManager.writePage(resultTable->tableName, outPageIndex, outBuffer, outBuffer.size());
@@ -4873,7 +4969,6 @@ void executeJOIN()
         outBuffer.clear();
     }
 
-    // Finalize Result Table
     if (resultTable->rowCount > 0)
     {
         tableCatalogue.insertTable(resultTable);
@@ -5130,7 +5225,6 @@ void executeRENAME()
 ```
 #include "global.h"
 
-// Helper function to parse an aggregate string like "MAX(Salary)"
 bool parseAggregate(string token, AggregateExpression& expr) {
     size_t openParen = token.find('(');
     size_t closeParen = token.find(')');
@@ -5159,7 +5253,6 @@ bool syntacticParseGROUP_BY(int arrowIdx) {
     logger.log("syntacticParseGROUP_BY");
     parsedQuery.queryType = GROUP_BY;
     
-    // Parse result tables (everything before <-)
     for(int i = 0; i < arrowIdx; i++) {
         parsedQuery.groupByResultTables.push_back(tokenizedQuery[i]);
     }
@@ -5174,7 +5267,6 @@ bool syntacticParseGROUP_BY(int arrowIdx) {
     }
     if (fromIdx == -1) { cout << "SYNTAX ERROR: Expected 'FROM' clause" << endl; return false; }
     
-    // Parse grouping attributes
     for(int i = arrowIdx + 3; i < fromIdx; i++) {
         parsedQuery.groupByAttributes.push_back(tokenizedQuery[i]);
     }
@@ -5186,7 +5278,6 @@ bool syntacticParseGROUP_BY(int arrowIdx) {
         cout << "SYNTAX ERROR: Expected 'HAVING' clause" << endl; return false;
     }
     
-    // Parse HAVING condition
     if (fromIdx + 5 >= tokenizedQuery.size()) { cout << "SYNTAX ERROR: Incomplete HAVING clause" << endl; return false; }
     
     if (!parseAggregate(tokenizedQuery[fromIdx + 3], parsedQuery.havingCondition.left)) return false;
@@ -5215,7 +5306,6 @@ bool syntacticParseGROUP_BY(int arrowIdx) {
         cout << "SYNTAX ERROR: Expected 'RETURN' clause" << endl; return false;
     }
     
-    // Parse RETURN aggregates
     for(int i = returnIdx + 1; i < tokenizedQuery.size(); i++) {
         AggregateExpression expr;
         if (!parseAggregate(tokenizedQuery[i], expr)) return false;
@@ -5277,7 +5367,6 @@ bool semanticParseGROUP_BY() {
     return true;
 }
 
-// Struct to maintain the state of an aggregate function across a group
 struct AggState {
     long long sum = 0;
     long long count = 0;
@@ -5303,7 +5392,7 @@ struct AggState {
         if (func == COUNT) return count;
         if (func == MIN) return (min_val == INT_MAX ? 0 : min_val);
         if (func == MAX) return (max_val == INT_MIN ? 0 : max_val);
-        if (func == AVG) return count == 0 ? 0 : sum / count;
+        if (func == AVG) return count == 0 ? 0 : (int)std::ceil((double)sum / count);
         return 0;
     }
 };
@@ -5312,20 +5401,17 @@ void executeGROUP_BY() {
     logger.log("executeGROUP_BY");
     Table* table = tableCatalogue.getTable(parsedQuery.groupByRelationName);
     
-    // Process each grouping independently
     for (int i = 0; i < parsedQuery.groupByAttributes.size(); i++) {
         string groupAttr = parsedQuery.groupByAttributes[i];
         string resTable = parsedQuery.groupByResultTables[i];
         AggregateExpression retAgg = parsedQuery.returnAggregates[i];
         
-        // Create a temporary table sorted by the grouping attribute to group the rows
         string tempName = resTable + "_temp_sort";
         vector<int> sortCols = { table->getColumnIndex(groupAttr) };
         vector<SortingStrategy> sortStrats = { ASC };
         table->externalSortCreateNewTable(tempName, sortCols, sortStrats);
         Table* sortedTable = tableCatalogue.getTable(tempName);
         
-        // Prepare the resulting table
         string retAggName;
         if (retAgg.func == COUNT && retAgg.colName == "*") {
             retAggName = "COUNT";
@@ -5342,7 +5428,6 @@ void executeGROUP_BY() {
         vector<vector<int>> outBuffer;
         resultTable->rowCount = 0; 
         
-        // Iterate through the sorted temporary table to compute aggregates
         Cursor cursor = sortedTable->getCursor();
         vector<int> row = cursor.getNext();
         
@@ -5357,7 +5442,6 @@ void executeGROUP_BY() {
             
             while (!row.empty()) {
                 if (row[groupColIdx] != currentGroupVal) {
-                    // Group completely read, evaluate HAVING condition
                     int valL = havLeftState.getResult(parsedQuery.havingCondition.left.func);
                     int valR = parsedQuery.havingCondition.isRightNumber ? parsedQuery.havingCondition.rightNumber : havRightState.getResult(parsedQuery.havingCondition.right.func);
                     
@@ -5366,7 +5450,6 @@ void executeGROUP_BY() {
                         resultTable->rowCount++;
                         hasRows = true;
                         
-                        // FLUSH BUFFER DIRECTLY TO PAGE (Just like SORT)
                         if (outBuffer.size() == resultTable->maxRowsPerBlock) {
                             bufferManager.writePage(resultTable->tableName, outPageIndex, outBuffer, outBuffer.size());
                             resultTable->blockCount++;
@@ -5376,14 +5459,12 @@ void executeGROUP_BY() {
                         }
                     }
                     
-                    // Reset stats for the new group
                     havLeftState.reset();
                     havRightState.reset();
                     retState.reset();
                     currentGroupVal = row[groupColIdx];
                 }
                 
-                // Accumulate states for current row
                 havLeftState.update(havLeftColIdx == -1 ? 1 : row[havLeftColIdx]);
                 if (!parsedQuery.havingCondition.isRightNumber) {
                     havRightState.update(havRightColIdx == -1 ? 1 : row[havRightColIdx]);
@@ -5393,7 +5474,6 @@ void executeGROUP_BY() {
                 row = cursor.getNext();
             }
             
-            // Don't forget to evaluate the very last group read!
             int valL = havLeftState.getResult(parsedQuery.havingCondition.left.func);
             int valR = parsedQuery.havingCondition.isRightNumber ? parsedQuery.havingCondition.rightNumber : havRightState.getResult(parsedQuery.havingCondition.right.func);
             
@@ -5402,7 +5482,6 @@ void executeGROUP_BY() {
                 resultTable->rowCount++;
                 hasRows = true;
                 
-                // FLUSH BUFFER DIRECTLY TO PAGE
                 if (outBuffer.size() == resultTable->maxRowsPerBlock) {
                     bufferManager.writePage(resultTable->tableName, outPageIndex, outBuffer, outBuffer.size());
                     resultTable->blockCount++;
@@ -5413,7 +5492,6 @@ void executeGROUP_BY() {
             }
         }
         
-        // FLUSH ANY REMAINING ROWS
         if (!outBuffer.empty()) {
             bufferManager.writePage(resultTable->tableName, outPageIndex, outBuffer, outBuffer.size());
             resultTable->blockCount++;
@@ -5421,7 +5499,6 @@ void executeGROUP_BY() {
             outBuffer.clear();
         }
         
-        // Save resultant table or discard if empty
         if (hasRows) {
             tableCatalogue.insertTable(resultTable);
         } else {
@@ -5429,7 +5506,6 @@ void executeGROUP_BY() {
             delete resultTable;
         }
         
-        // Cleanup temporary sorting table
         tableCatalogue.deleteTable(tempName);
     }
 }

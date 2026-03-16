@@ -29,6 +29,8 @@ bool syntacticParse()
         return syntacticParseSOURCE();
     else if (possibleQueryType == "DEGREE")
         return syntacticParseDEGREE();
+    else if (possibleQueryType == "SETBUFFER") 
+        return syntacticParseSET_BUFFER();
     else if (possibleQueryType == "SORT")
         return syntacticParseSORT();
     else
@@ -159,6 +161,9 @@ void ParsedQuery::clear()
     this->groupByAttributes.clear();
     this->groupByRelationName = "";
     this->returnAggregates.clear();
+
+    //SetBuffer
+    this->setBufferSize = 10;
 }
 
 /**

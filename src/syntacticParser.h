@@ -21,6 +21,7 @@ enum QueryType
     PROJECTION,
     RENAME,
     SELECTION,
+    SET_BUFFER,
     SORT,
     SOURCE,
     LOAD_GRAPH,
@@ -175,6 +176,9 @@ public:
     HavingCondition havingCondition;
     vector<AggregateExpression> returnAggregates;
 
+    //SetBuffer
+    int setBufferSize = 10;
+
 
     ParsedQuery();
     void clear();
@@ -204,3 +208,6 @@ bool isQueryFile(string fileName);
 // GroupBy
 
 bool syntacticParseGROUP_BY(int arrowIdx);
+
+//SetBuffer
+bool syntacticParseSET_BUFFER(); 

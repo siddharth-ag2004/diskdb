@@ -27,3 +27,6 @@ bool semanticParseDEGREE();
 
 // GroupBy
 bool semanticParseGROUP_BY();
+
+//SetBuffer
+bool semanticParseSET_BUFFER();

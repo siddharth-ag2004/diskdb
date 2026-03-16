@@ -19,6 +19,7 @@ void executePRINT();
 void executePROJECTION();
 void executeRENAME();
 void executeSELECTION();
+void executeSET_BUFFER();
 void executeSORT();
 void executeSOURCE();
 void executeDEGREE();

@@ -18,6 +18,7 @@ void executeCommand(){
         case PROJECTION: executePROJECTION(); break;
         case RENAME: executeRENAME(); break;
         case SELECTION: executeSELECTION(); break;
+        case SET_BUFFER: executeSET_BUFFER(); break;
         case SORT: executeSORT(); break;
         case SOURCE: executeSOURCE(); break;
         case DEGREE: executeDEGREE(); break;

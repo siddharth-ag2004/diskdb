@@ -70,7 +70,7 @@ Page BufferManager::insertIntoPool(string tableName, int pageIndex)
 {
     logger.log("BufferManager::insertIntoPool");
     Page page(tableName, pageIndex);
-    if (this->pages.size() >= BLOCK_COUNT)
+    while (this->pages.size() >= BLOCK_COUNT)
         pages.pop_front();
     pages.push_back(page);
     return page;

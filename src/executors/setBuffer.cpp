@@ -1,9 +1,5 @@
 #include "global.h"
 
-/**
- * @brief 
- * SYNTAX: SETBUFFER <K>
- */
 bool syntacticParseSET_BUFFER()
 {
     logger.log("syntacticParseSET_BUFFER");
@@ -39,10 +35,6 @@ bool semanticParseSET_BUFFER()
 void executeSET_BUFFER()
 {
     logger.log("executeSET_BUFFER");
-    // Update the global BLOCK_COUNT
     BLOCK_COUNT = parsedQuery.setBufferSize;
-    
-    // As per TA doubt document, no pages are dropped immediately from main memory.
-    // The BufferManager will handle the resizing during subsequent reads.
     return;
 }

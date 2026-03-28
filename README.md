@@ -24,3 +24,5 @@ Post compilation, an executable names ```server``` will be created in the ```src
 ```
 ./server
 ```
+
+For sample queries and usage examples, see [Overview.md](docs/Overview.md).
